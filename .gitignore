@@ -1,0 +1,20 @@
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de ambiente
+.env
+
+# Arquivos de log
+*.log
+
+# Arquivos temporários
+tmp/
+temp/
+
+# Dependências e módulos
+node_modules/
+vendor/
+
+# Arquivos de configuração local
+config.local.php
