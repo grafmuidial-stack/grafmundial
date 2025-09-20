@@ -36,26 +36,48 @@ body {
 }
 
 /* Header Styles */
+.header-image {
+  width: 100%;
+  overflow: hidden;
+}
+
+.header-img {
+  width: 100%;
+  display: block;
+}
+
 .site-header {
-  background: var(--header-bg);
+  background: url('Header.png') no-repeat center center;
+  background-size: cover;
   color: var(--white);
   text-align: center;
-  padding: 2rem 1rem;
+  padding: 20px;
   position: relative;
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
+  height: 200px;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.logo {
+  width: 180px;
+  height: auto;
+  display: block;
+  max-width: 100%;
 }
 
 .logo-container {
-  width: 80px;
+  width: 120px;
   height: 80px;
   margin: 0 auto 1rem;
   background-color: var(--white);
-  border-radius: 50%;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  padding: 5px;
 }
 
 .logo {
