@@ -7,7 +7,7 @@ services:
     runtime: static
     branch: main
     # Publica diretamente a partir da raiz do repositório (conteúdo estático)
-    staticPublishPath: ./
+    staticPublishPath: ./frontend
     # Sem etapa de build; é um site HTML/CSS/JS puro
     buildCommand: ""
     headers:
