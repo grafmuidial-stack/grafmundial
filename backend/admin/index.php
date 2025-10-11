@@ -367,6 +367,7 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
             <select class="ql-background"></select>
             <button class="ql-clean"></button>
             <button class="ql-image"></button>
+            <button type="button" id="btn-insert-iframe" title="Inserir Iframe">Iframe</button>
           </span>
         </div>
         <div id="editor"></div>
@@ -442,7 +443,27 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
           quill.setSelection(range.index + 1);
         }
         window.insertImageFromGallery = insertImageFromGallery;
-      </script>
+        // Inserção de iframe (frame HTML)
+        var btnIframe = document.getElementById('btn-insert-iframe');
+        if (btnIframe) {
+          btnIframe.addEventListener('click', function() {
+            var url = prompt('URL do conteúdo a incorporar (http/https):');
+            if (!url) return;
+            url = url.trim();
+            var isValid = /^(https?:\/\/)/i.test(url) && !/["'<>]/.test(url);
+            if (!isValid) {
+              alert('URL inválida. Use http(s) e sem caracteres especiais.');
+              return;
+            }
+            var range = quill.getSelection(true) || { index: quill.getLength() };
+            var html = '<div class="responsive-iframe" style="position:relative;width:100%;padding-top:56.25%">' +
+                       '<iframe src="' + url + '" title="Conteúdo incorporado" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen loading="lazy" referrerpolicy="no-referrer"></iframe>' +
+                       '</div>';
+            quill.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
+            quill.setSelection(range.index + 1);
+          });
+        }
+     </script>
     <?php } else { ?>
       <table>
         <thead><tr><th>Arquivo</th><th class="actions">Ações</th></tr></thead>
