@@ -322,6 +322,8 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
     .actions a,.actions button{margin-right:8px}
     .toolbar{margin:8px 0}
     #editor{height:420px;border:1px solid #ddd}
+    .custom-html-embed{border:1px dashed #bbb;padding:8px;margin:8px 0;background:#fafafa}
+    /* Indicador visual para bloco HTML inserido */
   </style>
   <!-- Quill WYSIWYG -->
   <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
@@ -401,105 +403,213 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
       </form>
       <script>
         var quill = new Quill('#editor', { theme: 'snow', modules: { toolbar: '#toolbar' } });
-        var rawFragment = <?php echo json_encode($edit_fragment); ?>;
-        function adjustAssetPaths(html) {
-          try {
-            return html.replace(/(src|href)=["']\/(?!uploads\/|admin\/|frontend\/)([^"']+)["']/gi, function(_, attr, path){
-              return attr + '="/frontend/' + path + '"';
-            });
-          } catch(e) { return html; }
-        }
-        function revertAssetPaths(html) {
-          try {
-            return html.replace(/(src|href)=["']\/frontend\/([^"']+)["']/gi, function(_, attr, path){
-              // Não reverte uploads
-              if (/^uploads\//i.test(path)) return attr + '="/frontend/' + path + '"';
-              return attr + '="/' + path + '"';
-            });
-          } catch(e) { return html; }
-        }
-        quill.root.innerHTML = adjustAssetPaths(rawFragment);
-        // Handler customizado para upload via Quill
-        var toolbar = quill.getModule('toolbar');
-        toolbar.addHandler('image', function() {
-          var input = document.getElementById('image-upload-input');
-          input.value = '';
-          input.click();
-        });
-        document.getElementById('image-upload-input').addEventListener('change', async function() {
-          var file = this.files && this.files[0];
-          if (!file) return;
-          var fd = new FormData();
-          fd.append('file', file);
-          fd.append('target', file.name);
-          fd.append('quillImage', '1');
-          try {
-            var res = await fetch('/admin', { method: 'POST', body: fd });
-            var json = await res.json();
-            if (json && json.ok && json.url) {
-              var range = quill.getSelection(true);
-              quill.insertEmbed(range.index, 'image', json.url, Quill.sources.USER);
-              quill.setSelection(range.index + 1);
-            } else {
-              alert('Falha ao enviar imagem.');
-            }
-          } catch (e) {
-            alert('Erro no envio: ' + e);
+        
+        // Registro de um embed personalizado para HTML seguro
+        var BlockEmbed = Quill.import('blots/block/embed');
+        class HtmlBlock extends BlockEmbed {
+          static blotName = 'html';
+          static tagName = 'DIV';
+          static className = 'custom-html-embed';
+          static create(value) {
+            const node = super.create();
+            node.setAttribute('data-html', '1');
+            node.innerHTML = value;
+            return node;
           }
-        });
-        // Botão auxiliar de upload
-        var btnUpload = document.getElementById('btn-upload-image');
-        if (btnUpload) {
-          btnUpload.addEventListener('click', function() {
-            var input = document.getElementById('image-upload-input');
-            input.value = '';
-            input.click();
-          });
+          static value(node) {
+            return node.innerHTML;
+          }
         }
-        // Inserir da galeria existente
-        function insertImageFromGallery(url) {
-          var range = quill.getSelection(true) || { index: quill.getLength() };
-          quill.insertEmbed(range.index, 'image', url, Quill.sources.USER);
-          quill.setSelection(range.index + 1);
+        Quill.register(HtmlBlock);
+        
+        // Função de sanitização robusta para o HTML inserido
+        function sanitizeHtml(html) {
+          try {
+            const template = document.createElement('template');
+            template.innerHTML = html;
+            const forbiddenTags = ['script', 'style'];
+            const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT, null, false);
+            const toRemove = [];
+            while (walker.nextNode()) {
+              const el = walker.currentNode;
+              const tag = el.tagName ? el.tagName.toLowerCase() : '';
+              if (forbiddenTags.includes(tag)) { toRemove.push(el); continue; }
+              Array.from(el.attributes || []).forEach(attr => {
+                const name = attr.name.toLowerCase();
+                const val = attr.value || '';
+                if (name.startsWith('on')) el.removeAttribute(attr.name);
+                if ((name === 'src' || name === 'href') && /^javascript:/i.test(val)) {
+                  el.removeAttribute(attr.name);
+                }
+              });
+            }
+            toRemove.forEach(n => n.remove());
+            return template.innerHTML;
+          } catch (e) {
+            return html;
+          }
         }
-        window.insertImageFromGallery = insertImageFromGallery;
-        // Inserção de iframe (frame HTML)
-        var btnIframe = document.getElementById('btn-insert-iframe');
-         if (btnIframe) {
-           btnIframe.addEventListener('click', function() {
-             var url = prompt('URL do conteúdo a incorporar (http/https):');
-             if (!url) return;
-             url = url.trim();
-             var isValid = /^(https?:\/\/)/i.test(url) && !/["'<>]/.test(url);
-             if (!isValid) {
-               alert('URL inválida. Use http(s) e sem caracteres especiais.');
-               return;
-             }
-             var range = quill.getSelection(true) || { index: quill.getLength() };
-             var html = '<div class="responsive-iframe" style="position:relative;width:100%;padding-top:56.25%">' +
-                        '<iframe src="' + url + '" title="Conteúdo incorporado" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen loading="lazy" referrerpolicy="no-referrer"></iframe>' +
-                        '</div>';
-             quill.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
-             quill.setSelection(range.index + 1);
-           });
-         }
-         var btnHtml = document.getElementById('btn-insert-html');
-         if (btnHtml) {
-           btnHtml.addEventListener('click', function() {
-             var snippet = prompt('Cole o trecho HTML (tags simples, sem <script>):');
-             if (!snippet) return;
-             snippet = snippet.trim();
-             // Sanitização básica: bloquear scripts e tags perigosas
-             if (/<script|onload=|onerror=|javascript:/i.test(snippet)) {
-               alert('Trecho bloqueado: remova <script>, eventos inline e URLs javascript:.');
-               return;
-             }
-             // Permitir tags básicas como div, span, img, a, p, h1-h6, ul/ol/li, table*, iframe (já coberto por botão próprio)
-             var range = quill.getSelection(true) || { index: quill.getLength() };
-             quill.clipboard.dangerouslyPasteHTML(range.index, snippet, 'user');
-             quill.setSelection(range.index + 1);
-           });
-         }
+     </script>
+    <?php } else { ?>
+      <table>
+        <thead><tr><th>Arquivo</th><th class="actions">Ações</th></tr></thead>
+        <tbody>
+          <?php foreach ($pages as $p): ?>
+            <tr>
+              <td><?php echo htmlspecialchars($p); ?></td>
+              <td class="actions">
+                <a href="/<?php echo rawurlencode($p); ?>" target="_blank">Ver</a>
+                <a href="/admin?tab=pages&edit=<?php echo rawurlencode($p); ?>" style="margin-left:8px">Editar</a>
+                <form method="post" style="display:inline" onsubmit="return confirm('Excluir página?');">
+                  <input type="hidden" name="action" value="delete_page">
+                  <input type="hidden" name="page" value="<?php echo htmlspecialchars($p); ?>">
+                  <button type="submit">Excluir</button>
+                </form>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    <?php } ?>
+  </section>
+<?php } elseif (($_GET['tab'] ?? '') === 'menu') { ?>
+  <section>
+    <h2>Menu (Navbar)</h2>
+    <?php $currentMenu = extract_menu_from_file($DOCROOT . '/index.html'); ?>
+    <form method="post">
+      <input type="hidden" name="action" value="save_menu">
+      <label>HTML do Menu (inclua a tag &lt;nav class="main-nav"&gt; ... &lt;/nav&gt;)</label>
+      <textarea name="menu_html" required><?php echo htmlspecialchars($currentMenu ?: '<nav class="main-nav"></nav>'); ?></textarea>
+      <button type="submit">Salvar Menu</button>
+    </form>
+  </section>
+<?php } else { ?>
+  <section>
+    <h2>Enviar nova imagem</h2>
+    <form method="post" enctype="multipart/form-data">
+      <label>Arquivo</label>
+      <input type="file" name="file" accept="image/*" required>
+      <label>Salvar como (opcional, ex: logo.png, banner.png)</label>
+      <input type="text" name="target" placeholder="logo.png">
+      <button type="submit">Enviar</button>
+    </form>
+  </section>
+  <section class="grid">
+    <?php foreach ($files as $f): $p = '/uploads/' . rawurlencode($f); ?>
+      <div class="card">
+        <img src="<?php echo $p; ?>" alt="<?php echo htmlspecialchars($f); ?>">
+        <div><?php echo htmlspecialchars($f); ?></div>
+        <form method="post" onsubmit="return confirm('Deseja substituir este arquivo?');" enctype="multipart/form-data">
+          <input type="hidden" name="target" value="<?php echo htmlspecialchars($f); ?>">
+          <input type="file" name="file" accept="image/*" required>
+          <button type="submit">Substituir</button>
+        </form>
+      </div>
+    <?php endforeach; ?>
+  </section>
+<?php } ?>
+</body>
+</html>
+
+  #editor{height:420px;border:1px solid #ddd}
+  .custom-html-embed{border:1px dashed #bbb;padding:8px;margin:8px 0;background:#fafafa}
+  /* Indicador visual para bloco HTML inserido */
+  var rawFragment = <?php echo json_encode($edit_fragment); ?>;
+  function adjustAssetPaths(html) {
+    try {
+      return html.replace(/(src|href)=["']\/(?!uploads\/|admin\/|frontend\/)([^"']+)["']/gi, function(_, attr, path){
+        return attr + '="/frontend/' + path + '"';
+      });
+    } catch(e) { return html; }
+  }
+  function revertAssetPaths(html) {
+    try {
+      return html.replace(/(src|href)=["']\/frontend\/([^"']+)["']/gi, function(_, attr, path){
+        // Não reverte uploads
+        if (/^uploads\//i.test(path)) return attr + '="/frontend/' + path + '"';
+        return attr + '="/' + path + '"';
+      });
+    } catch(e) { return html; }
+  }
+  quill.root.innerHTML = adjustAssetPaths(rawFragment);
+  // Handler customizado para upload via Quill
+  var toolbar = quill.getModule('toolbar');
+  toolbar.addHandler('image', function() {
+    var input = document.getElementById('image-upload-input');
+    input.value = '';
+    input.click();
+  });
+  document.getElementById('image-upload-input').addEventListener('change', async function() {
+    var file = this.files && this.files[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('target', file.name);
+    fd.append('quillImage', '1');
+    try {
+      var res = await fetch('/admin', { method: 'POST', body: fd });
+      var json = await res.json();
+      if (json && json.ok && json.url) {
+        var range = quill.getSelection(true);
+        quill.insertEmbed(range.index, 'image', json.url, Quill.sources.USER);
+        quill.setSelection(range.index + 1);
+      } else {
+        alert('Falha ao enviar imagem.');
+      }
+    } catch (e) {
+      alert('Erro no envio: ' + e);
+    }
+  });
+  // Botão auxiliar de upload
+  var btnUpload = document.getElementById('btn-upload-image');
+  if (btnUpload) {
+    btnUpload.addEventListener('click', function() {
+      var input = document.getElementById('image-upload-input');
+      input.value = '';
+      input.click();
+    });
+  }
+  // Inserir da galeria existente
+  function insertImageFromGallery(url) {
+    var range = quill.getSelection(true) || { index: quill.getLength() };
+    quill.insertEmbed(range.index, 'image', url, Quill.sources.USER);
+    quill.setSelection(range.index + 1);
+  }
+  window.insertImageFromGallery = insertImageFromGallery;
+  // Inserção de iframe (frame HTML)
+  var btnIframe = document.getElementById('btn-insert-iframe');
+   if (btnIframe) {
+     btnIframe.addEventListener('click', function() {
+       var url = prompt('URL do conteúdo a incorporar (http/https):');
+       if (!url) return;
+       url = url.trim();
+       var isValid = /^(https?:\/\/)/i.test(url) && !/["'<>]/.test(url);
+       if (!isValid) {
+         alert('URL inválida. Use http(s) e sem caracteres especiais.');
+         return;
+       }
+       var range = quill.getSelection(true) || { index: quill.getLength() };
+       var html = '<div class="responsive-iframe" style="position:relative;width:100%;padding-top:56.25%">' +
+                  '<iframe src="' + url + '" title="Conteúdo incorporado" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen loading="lazy" referrerpolicy="no-referrer"></iframe>' +
+                  '</div>';
+       quill.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
+       quill.setSelection(range.index + 1);
+     });
+   }
+   var btnHtml = document.getElementById('btn-insert-html');
+   if (btnHtml) {
+     btnHtml.addEventListener('click', function() {
+       var snippet = prompt('Cole o trecho HTML (tags simples, sem <script>):');
+       if (!snippet) return;
+       snippet = snippet.trim();
+       var sanitized = sanitizeHtml(snippet);
+       // Ajusta paths de assets para preview dentro do Admin
+       sanitized = adjustAssetPaths(sanitized);
+       var range = quill.getSelection(true) || { index: quill.getLength() };
+       quill.insertEmbed(range.index, 'html', sanitized, Quill.sources.USER);
+       quill.setSelection(range.index + 1);
+     });
+   }
      </script>
     <?php } else { ?>
       <table>
