@@ -1,0 +1,16 @@
+# Render Blueprint para site estático do Grafmundial
+previews:
+  generation: automatic
+services:
+  - type: web
+    name: grafmundial-site
+    runtime: static
+    branch: main
+    # Publica diretamente a partir da raiz do repositório (conteúdo estático)
+    staticPublishPath: ./
+    # Sem etapa de build; é um site HTML/CSS/JS puro
+    buildCommand: ""
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: max-age=600
