@@ -8,7 +8,7 @@ RUN a2enmod rewrite
 ENV APACHE_DOCUMENT_ROOT=/var/www/html
 WORKDIR /var/www/html
 COPY ./frontend ./
-RUN mkdir -p /var/www/html/uploads && chown -R www-data:www-data /var/www/html/uploads
+RUN mkdir -p /var/www/html/uploads
 
 # Copia backend
 COPY ./backend /var/www/backend
@@ -37,6 +37,9 @@ EOF
 
 # Copia router.php para docroot
 COPY ./backend/router.php /var/www/html/router.php
+RUN chown -R www-data:www-data /var/www/html \
+    && find /var/www/html -type d -exec chmod 775 {} \; \
+    && find /var/www/html -type f -exec chmod 664 {} \;
 
 # Entrada para ajustar porta do Apache
 COPY ./docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
