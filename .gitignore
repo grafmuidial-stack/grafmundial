@@ -20,4 +20,4 @@ vendor/
 config.local.php
 
 # Painel administrativo (PHP - não funciona no GitHub Pages)
-admin/
+/admin/
