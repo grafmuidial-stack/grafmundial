@@ -1,0 +1,7 @@
+<svg width="200" height="150" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="#4B6EAF"/>
+  <rect x="10" y="10" width="180" height="130" rx="5" fill="#5D80C1"/>
+  <text x="100" y="60" font-family="Arial" font-size="24" fill="white" text-anchor="middle" font-weight="bold">BANNER</text>
+  <text x="100" y="90" font-family="Arial" font-size="14" fill="white" text-anchor="middle">Divulgação de impacto</text>
+  <text x="100" y="110" font-family="Arial" font-size="14" fill="white" text-anchor="middle">para sua marca!</text>
+</svg>
