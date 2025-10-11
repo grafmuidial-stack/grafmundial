@@ -369,8 +369,9 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
             <select class="ql-background"></select>
             <button class="ql-clean"></button>
             <button class="ql-image"></button>
-            <button type="button" id="btn-insert-iframe" title="Inserir Iframe">Iframe</button>
-          </span>
+             <button type="button" id="btn-insert-iframe" title="Inserir Iframe">Iframe</button>
+             <button type="button" id="btn-insert-html" title="Inserir HTML">HTML</button>
+           </span>
         </div>
         <div id="editor"></div>
          <input type="file" id="image-upload-input" accept="image/*" style="display:none">
@@ -464,24 +465,41 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
         window.insertImageFromGallery = insertImageFromGallery;
         // Inserção de iframe (frame HTML)
         var btnIframe = document.getElementById('btn-insert-iframe');
-        if (btnIframe) {
-          btnIframe.addEventListener('click', function() {
-            var url = prompt('URL do conteúdo a incorporar (http/https):');
-            if (!url) return;
-            url = url.trim();
-            var isValid = /^(https?:\/\/)/i.test(url) && !/["'<>]/.test(url);
-            if (!isValid) {
-              alert('URL inválida. Use http(s) e sem caracteres especiais.');
-              return;
-            }
-            var range = quill.getSelection(true) || { index: quill.getLength() };
-            var html = '<div class="responsive-iframe" style="position:relative;width:100%;padding-top:56.25%">' +
-                       '<iframe src="' + url + '" title="Conteúdo incorporado" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen loading="lazy" referrerpolicy="no-referrer"></iframe>' +
-                       '</div>';
-            quill.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
-            quill.setSelection(range.index + 1);
-          });
-        }
+         if (btnIframe) {
+           btnIframe.addEventListener('click', function() {
+             var url = prompt('URL do conteúdo a incorporar (http/https):');
+             if (!url) return;
+             url = url.trim();
+             var isValid = /^(https?:\/\/)/i.test(url) && !/["'<>]/.test(url);
+             if (!isValid) {
+               alert('URL inválida. Use http(s) e sem caracteres especiais.');
+               return;
+             }
+             var range = quill.getSelection(true) || { index: quill.getLength() };
+             var html = '<div class="responsive-iframe" style="position:relative;width:100%;padding-top:56.25%">' +
+                        '<iframe src="' + url + '" title="Conteúdo incorporado" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen loading="lazy" referrerpolicy="no-referrer"></iframe>' +
+                        '</div>';
+             quill.clipboard.dangerouslyPasteHTML(range.index, html, 'user');
+             quill.setSelection(range.index + 1);
+           });
+         }
+         var btnHtml = document.getElementById('btn-insert-html');
+         if (btnHtml) {
+           btnHtml.addEventListener('click', function() {
+             var snippet = prompt('Cole o trecho HTML (tags simples, sem <script>):');
+             if (!snippet) return;
+             snippet = snippet.trim();
+             // Sanitização básica: bloquear scripts e tags perigosas
+             if (/<script|onload=|onerror=|javascript:/i.test(snippet)) {
+               alert('Trecho bloqueado: remova <script>, eventos inline e URLs javascript:.');
+               return;
+             }
+             // Permitir tags básicas como div, span, img, a, p, h1-h6, ul/ol/li, table*, iframe (já coberto por botão próprio)
+             var range = quill.getSelection(true) || { index: quill.getLength() };
+             quill.clipboard.dangerouslyPasteHTML(range.index, snippet, 'user');
+             quill.setSelection(range.index + 1);
+           });
+         }
      </script>
     <?php } else { ?>
       <table>
