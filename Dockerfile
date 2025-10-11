@@ -8,7 +8,7 @@ RUN a2enmod rewrite
 ENV APACHE_DOCUMENT_ROOT=/var/www/html
 WORKDIR /var/www/html
 COPY ./frontend ./
-RUN mkdir -p /var/www/html/frontend/uploads && chown -R www-data:www-data /var/www/html/frontend/uploads
+RUN mkdir -p /var/www/html/uploads && chown -R www-data:www-data /var/www/html/uploads
 
 # Copia backend
 COPY ./backend /var/www/backend

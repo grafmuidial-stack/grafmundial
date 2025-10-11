@@ -4,7 +4,7 @@ session_start();
 
 $USER = getenv('ADMIN_USER') ?: 'admin';
 $PASS = getenv('ADMIN_PASS') ?: 'changeme';
-$uploadsDir = ($_SERVER['DOCUMENT_ROOT'] ?? '/var/www/html') . '/frontend/uploads';
+$uploadsDir = ($_SERVER['DOCUMENT_ROOT'] ?? '/var/www/html') . '/uploads';
 if (!is_dir($uploadsDir)) { mkdir($uploadsDir, 0777, true); }
 
 function is_logged_in() {
@@ -84,7 +84,7 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
   </form>
 </section>
 <section class="grid">
-  <?php foreach ($files as $f): $p = '/frontend/uploads/' . rawurlencode($f); ?>
+  <?php foreach ($files as $f): $p = '/uploads/' . rawurlencode($f); ?>
     <div class="card">
       <img src="<?php echo $p; ?>" alt="<?php echo htmlspecialchars($f); ?>">
       <div><?php echo htmlspecialchars($f); ?></div>
