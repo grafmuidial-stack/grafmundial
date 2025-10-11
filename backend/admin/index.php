@@ -4,7 +4,7 @@ session_start();
 
 $USER = getenv('ADMIN_USER') ?: 'admin';
 $PASS = getenv('ADMIN_PASS') ?: 'changeme';
-$uploadsDir = dirname(__DIR__, 2) . '/frontend/uploads';
+$uploadsDir = ($_SERVER['DOCUMENT_ROOT'] ?? '/var/www/html') . '/frontend/uploads';
 if (!is_dir($uploadsDir)) { mkdir($uploadsDir, 0777, true); }
 
 function is_logged_in() {
