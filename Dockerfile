@@ -1,16 +1,43 @@
-# Dockerfile para servir o site estático no Render via Node + serve
-FROM node:18-alpine
+# Dockerfile para Web Service com PHP servindo frontend e /admin
+FROM php:8.2-apache
 
-WORKDIR /usr/src/app
+# Habilita mod_rewrite para roteamento
+RUN a2enmod rewrite
 
-# Copia apenas o frontend
-COPY ./frontend ./frontend
+# Define docroot e copia frontend
+ENV APACHE_DOCUMENT_ROOT=/var/www/html
+WORKDIR /var/www/html
+COPY ./frontend ./
 
-# Instala servidor estático
-RUN npm install -g serve
+# Copia backend
+COPY ./backend /var/www/backend
 
-# Porta esperada pelo Render
+# Configurações de Apache para permitir rewrite
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
+    && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf \
+    && { \
+      echo '<Directory "/var/www/html">'; \
+      echo '  AllowOverride All'; \
+      echo '  Require all granted'; \
+      echo '</Directory>'; \
+    } >> /etc/apache2/apache2.conf
+
+# Roteamento via .htaccess: envia /admin para backend e fallback para index.html
+RUN printf "%s" "<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^admin($|/.*)$ /router.php [L]
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
+  RewriteRule ^ /index.html [L]
+</IfModule>
+" > /var/www/html/.htaccess
+
+# Copia router.php para docroot
+COPY ./backend/router.php /var/www/html/router.php
+
+# Render usa PORT; expõe 10000 por compatibilidade local
 ENV PORT=10000
+EXPOSE 10000
 
-# Comando de inicialização: serve somente o diretório frontend na porta $PORT
-CMD ["sh", "-c", "serve ./frontend -l ${PORT}"]
+# Comando de inicialização (o Render redireciona PORT -> Apache)
+CMD ["apache2-foreground"]
