@@ -35,9 +35,14 @@ RUN printf "%s" "<IfModule mod_rewrite.c>
 # Copia router.php para docroot
 COPY ./backend/router.php /var/www/html/router.php
 
+# Entrada para ajustar porta do Apache
+COPY ./docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Render usa PORT; expõe 10000 por compatibilidade local
 ENV PORT=10000
 EXPOSE 10000
 
-# Comando de inicialização (o Render redireciona PORT -> Apache)
+# Usa entrypoint que ajusta a porta
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["apache2-foreground"]
