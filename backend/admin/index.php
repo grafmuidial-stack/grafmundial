@@ -5,6 +5,8 @@ session_start();
 $USER = getenv('ADMIN_USER') ?: 'admin';
 $PASS = getenv('ADMIN_PASS') ?: 'changeme';
 $DOCROOT = ($_SERVER['DOCUMENT_ROOT'] ?? '/var/www/html');
+// Ajuste automático do docroot em ambiente local (projeto com pasta /frontend)
+if (is_dir($DOCROOT . '/frontend')) { $DOCROOT = $DOCROOT . '/frontend'; }
 $uploadsDir = $DOCROOT . '/uploads';
 if (!is_dir($uploadsDir)) { mkdir($uploadsDir, 0777, true); }
 $backupDir = $uploadsDir . '/backups';
@@ -348,7 +350,7 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
     </form>
     <?php if ($editing) { ?>
       <h3>Editando: <?php echo htmlspecialchars($editing); ?></h3>
-      <form method="post" onsubmit="document.querySelector('input[name=editor_mode]').value='fragment';document.querySelector('textarea[name=content_fragment]').value = quill.root.innerHTML;">
+      <form method="post" onsubmit="document.querySelector('input[name=editor_mode]').value='fragment';document.querySelector('textarea[name=content_fragment]').value = revertAssetPaths(quill.root.innerHTML);">
         <input type="hidden" name="action" value="save_page">
         <input type="hidden" name="page" value="<?php echo htmlspecialchars($editing); ?>">
         <input type="hidden" name="editor_mode" value="fragment">
@@ -398,7 +400,24 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
       </form>
       <script>
         var quill = new Quill('#editor', { theme: 'snow', modules: { toolbar: '#toolbar' } });
-        quill.root.innerHTML = <?php echo json_encode($edit_fragment); ?>;
+        var rawFragment = <?php echo json_encode($edit_fragment); ?>;
+        function adjustAssetPaths(html) {
+          try {
+            return html.replace(/(src|href)=["']\/(?!uploads\/|admin\/|frontend\/)([^"']+)["']/gi, function(_, attr, path){
+              return attr + '="/frontend/' + path + '"';
+            });
+          } catch(e) { return html; }
+        }
+        function revertAssetPaths(html) {
+          try {
+            return html.replace(/(src|href)=["']\/frontend\/([^"']+)["']/gi, function(_, attr, path){
+              // Não reverte uploads
+              if (/^uploads\//i.test(path)) return attr + '="/frontend/' + path + '"';
+              return attr + '="/' + path + '"';
+            });
+          } catch(e) { return html; }
+        }
+        quill.root.innerHTML = adjustAssetPaths(rawFragment);
         // Handler customizado para upload via Quill
         var toolbar = quill.getModule('toolbar');
         toolbar.addHandler('image', function() {
