@@ -23,14 +23,16 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-av
     } >> /etc/apache2/apache2.conf
 
 # Roteamento via .htaccess: envia /admin para backend e fallback para index.html
-RUN printf "%s" "<IfModule mod_rewrite.c>
+RUN set -e; \
+  cat > /var/www/html/.htaccess <<'EOF'
+<IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteRule ^admin($|/.*)$ /router.php [L]
   RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
   RewriteRule ^ /index.html [L]
 </IfModule>
-" > /var/www/html/.htaccess
+EOF
 
 # Copia router.php para docroot
 COPY ./backend/router.php /var/www/html/router.php
