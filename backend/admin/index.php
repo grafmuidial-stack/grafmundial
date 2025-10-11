@@ -352,7 +352,7 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
         <input type="hidden" name="action" value="save_page">
         <input type="hidden" name="page" value="<?php echo htmlspecialchars($editing); ?>">
         <input type="hidden" name="editor_mode" value="fragment">
-        <label>Editor (WYSIWYG) - edita apenas o conteúdo dentro de <main></label>
+        <label>Editor (WYSIWYG) - edita apenas o conteúdo dentro de &lt;main&gt;</label>
         <div id="toolbar" class="toolbar">
           <span class="ql-formats">
             <select class="ql-header"></select>
@@ -492,7 +492,7 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
     <?php $currentMenu = extract_menu_from_file($DOCROOT . '/index.html'); ?>
     <form method="post">
       <input type="hidden" name="action" value="save_menu">
-      <label>HTML do Menu (inclua a tag <nav class="main-nav"> ... </nav>)</label>
+      <label>HTML do Menu (inclua a tag &lt;nav class="main-nav"&gt; ... &lt;/nav&gt;)</label>
       <textarea name="menu_html" required><?php echo htmlspecialchars($currentMenu ?: '<nav class="main-nav"></nav>'); ?></textarea>
       <button type="submit">Salvar Menu</button>
     </form>
