@@ -280,8 +280,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file']) && (!isset($
     if ($targetName === '') { $targetName = basename($_FILES['file']['name']); }
     $targetPath = $uploadsDir . '/' . $targetName;
     if (!move_uploaded_file($_FILES['file']['tmp_name'], $targetPath)) {
+        if (isset($_POST['quillImage'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => false, 'error' => 'upload_failed']);
+            exit;
+        }
         $msg = 'Falha ao salvar arquivo';
     } else {
+        if (isset($_POST['quillImage'])) {
+            header('Content-Type: application/json');
+            $url = '/uploads/' . rawurlencode($targetName);
+            echo json_encode(['ok' => true, 'url' => $url, 'name' => $targetName]);
+            exit;
+        }
         $msg = 'Arquivo enviado: ' . htmlspecialchars($targetName);
     }
 }
@@ -351,12 +362,32 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
             <button class="ql-link"></button>
             <button class="ql-list" value="ordered"></button>
             <button class="ql-list" value="bullet"></button>
+            <select class="ql-align"></select>
+            <select class="ql-color"></select>
+            <select class="ql-background"></select>
+            <button class="ql-clean"></button>
+            <button class="ql-image"></button>
           </span>
         </div>
         <div id="editor"></div>
-        <textarea name="content_fragment" style="display:none"></textarea>
-        <details style="margin:8px 0">
-          <summary>Editar HTML bruto da página (avançado)</summary>
+         <input type="file" id="image-upload-input" accept="image/*" style="display:none">
+         <textarea name="content_fragment" style="display:none"></textarea>
+         <details style="margin:8px 0">
+           <summary>Inserir imagens</summary>
+           <p>Você pode enviar uma imagem e inseri-la no cursor do editor, ou escolher da galeria abaixo.</p>
+           <button type="button" id="btn-upload-image">Enviar e Inserir Imagem</button>
+           <div style="margin-top:12px" class="grid">
+             <?php foreach ($files as $f): $p = '/uploads/' . rawurlencode($f); ?>
+               <div class="card">
+                 <img src="<?php echo $p; ?>" alt="<?php echo htmlspecialchars($f); ?>">
+                 <div><?php echo htmlspecialchars($f); ?></div>
+                 <button type="button" onclick="insertImageFromGallery('<?php echo $p; ?>')">Inserir no Editor</button>
+               </div>
+             <?php endforeach; ?>
+           </div>
+         </details>
+         <details style="margin:8px 0">
+           <summary>Editar HTML bruto da página (avançado)</summary>
           <p>Use apenas se precisar alterar estruturas (head, body, header, nav). Isso pode quebrar o layout.</p>
           <textarea name="content" style="height:240px"><?php echo htmlspecialchars($edit_content); ?></textarea>
           <label><input type="checkbox" onchange="document.querySelector('input[name=editor_mode]').value=this.checked?'full':'fragment'"> Salvar como página completa</label>
@@ -367,6 +398,50 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
       <script>
         var quill = new Quill('#editor', { theme: 'snow', modules: { toolbar: '#toolbar' } });
         quill.root.innerHTML = <?php echo json_encode($edit_fragment); ?>;
+        // Handler customizado para upload via Quill
+        var toolbar = quill.getModule('toolbar');
+        toolbar.addHandler('image', function() {
+          var input = document.getElementById('image-upload-input');
+          input.value = '';
+          input.click();
+        });
+        document.getElementById('image-upload-input').addEventListener('change', async function() {
+          var file = this.files && this.files[0];
+          if (!file) return;
+          var fd = new FormData();
+          fd.append('file', file);
+          fd.append('target', file.name);
+          fd.append('quillImage', '1');
+          try {
+            var res = await fetch('/admin', { method: 'POST', body: fd });
+            var json = await res.json();
+            if (json && json.ok && json.url) {
+              var range = quill.getSelection(true);
+              quill.insertEmbed(range.index, 'image', json.url, Quill.sources.USER);
+              quill.setSelection(range.index + 1);
+            } else {
+              alert('Falha ao enviar imagem.');
+            }
+          } catch (e) {
+            alert('Erro no envio: ' + e);
+          }
+        });
+        // Botão auxiliar de upload
+        var btnUpload = document.getElementById('btn-upload-image');
+        if (btnUpload) {
+          btnUpload.addEventListener('click', function() {
+            var input = document.getElementById('image-upload-input');
+            input.value = '';
+            input.click();
+          });
+        }
+        // Inserir da galeria existente
+        function insertImageFromGallery(url) {
+          var range = quill.getSelection(true) || { index: quill.getLength() };
+          quill.insertEmbed(range.index, 'image', url, Quill.sources.USER);
+          quill.setSelection(range.index + 1);
+        }
+        window.insertImageFromGallery = insertImageFromGallery;
       </script>
     <?php } else { ?>
       <table>
