@@ -7,6 +7,16 @@ $PASS = getenv('ADMIN_PASS') ?: 'changeme';
 $DOCROOT = ($_SERVER['DOCUMENT_ROOT'] ?? '/var/www/html');
 $uploadsDir = $DOCROOT . '/uploads';
 if (!is_dir($uploadsDir)) { mkdir($uploadsDir, 0777, true); }
+$backupDir = $uploadsDir . '/backups';
+if (!is_dir($backupDir)) { mkdir($backupDir, 0777, true); }
+
+function backup_file($path, $backupDir) {
+    if (is_file($path)) {
+        $base = basename($path);
+        $ts = date('Ymd-His');
+        @copy($path, $backupDir . '/' . $base . '.' . $ts . '.bak');
+    }
+}
 
 function is_logged_in() {
     return isset($_SESSION['logged']) && $_SESSION['logged'] === true;
@@ -93,7 +103,11 @@ function apply_menu_to_all_pages($docroot, $menuHtml) {
             // Se não existe, insere após <header>
             $new = preg_replace('/<header[^>]*>.*?<\/header>/is', '$0' . $menuHtml, $html, 1);
         }
-        if ($new && $new !== $html) { file_put_contents($path, $new); $applied++; }
+        if ($new && $new !== $html) {
+            backup_file($path, $GLOBALS['backupDir']);
+            file_put_contents($path, $new);
+            $applied++;
+        }
     }
     return $applied;
 }
@@ -108,13 +122,25 @@ function extract_main_content($html) {
     return $html; // fallback
 }
 function replace_main_content($html, $newContent) {
+    // Caso já exista <main>, substitui apenas o conteúdo de <main>
     if (preg_match('/<main[^>]*>[\s\S]*?<\/main>/i', $html)) {
         return preg_replace('/<main[^>]*>[\s\S]*?<\/main>/i', '<main class="content">' . $newContent . '</main>', $html, 1);
     }
+    // Se não houver <main> mas houver <body>, preserva header/nav/footer e injeta um <main>
     if (preg_match('/<body[^>]*>[\s\S]*?<\/body>/i', $html)) {
-        return preg_replace('/<body[^>]*>[\s\S]*?<\/body>/i', '<body>' . $newContent . '</body>', $html, 1);
+        $openBodyTag = '<body>';
+        if (preg_match('/<body[^>]*>/i', $html, $mOpen)) { $openBodyTag = $mOpen[0]; }
+        $header = '';
+        if (preg_match('/<header[^>]*>[\s\S]*?<\/header>/i', $html, $mHeader)) { $header = $mHeader[0]; }
+        $nav = '';
+        if (preg_match('/<nav[^>]*class="[^"]*main-nav[^"]*"[^>]*>[\s\S]*?<\/nav>/i', $html, $mNav)) { $nav = $mNav[0]; }
+        $footer = '';
+        if (preg_match('/<footer[^>]*>[\s\S]*?<\/footer>/i', $html, $mFooter)) { $footer = $mFooter[0]; }
+        $newInner = $header . $nav . '<main class="content">' . $newContent . '</main>' . $footer;
+        return preg_replace('/<body[^>]*>[\s\S]*?<\/body>/i', $openBodyTag . $newInner . '</body>', $html, 1);
     }
-    return $newContent; // fallback
+    // Fallback: se não houver nem <main> nem <body>, retorna só o fragmento (quem salvou em modo avançado sem estrutura)
+    return $newContent;
 }
 
 $page_msg = '';
@@ -172,22 +198,48 @@ if (isset($_POST['action']) && $_POST['action'] === 'save_page') {
         $page_msg = 'Nome de página inválido.';
     } else {
         $target = $DOCROOT . '/' . $page;
-        $editorMode = $_POST['editor_mode'] ?? 'fragment';
-        if ($editorMode === 'fragment') {
-            $fragment = $_POST['content_fragment'] ?? '';
-            $original = is_file($target) ? file_get_contents($target) : '';
-            $newHtml = replace_main_content($original, $fragment);
-            if (file_put_contents($target, $newHtml) === false) {
-                $page_msg = 'Falha ao salvar conteúdo principal.';
-            } else {
-                $page_msg = 'Conteúdo principal da página atualizado.';
-            }
+        if (!is_writable(dirname($target))) {
+            $page_msg = 'Destino não gravável. Verifique permissões.';
         } else {
-            $content = $_POST['content'] ?? '';
-            if (file_put_contents($target, $content) === false) {
-                $page_msg = 'Falha ao salvar página.';
+            $editorMode = $_POST['editor_mode'] ?? 'fragment';
+            if ($editorMode === 'fragment') {
+                $fragment = $_POST['content_fragment'] ?? '';
+                if (trim($fragment) === '') {
+                    $page_msg = 'Conteúdo vazio — nada foi salvo.';
+                } else {
+                    $original = is_file($target) ? file_get_contents($target) : '';
+                    $newHtml = replace_main_content($original, $fragment);
+                    backup_file($target, $backupDir);
+                    if (file_put_contents($target, $newHtml) === false) {
+                        $page_msg = 'Falha ao salvar conteúdo principal.';
+                    } else {
+                        $page_msg = 'Conteúdo principal da página atualizado.';
+                    }
+                }
             } else {
-                $page_msg = 'Página salva: ' . htmlspecialchars($page);
+                $content = $_POST['content'] ?? '';
+                if (trim($content) === '') {
+                    $page_msg = 'Página completa vazia — nada foi salvo.';
+                } else {
+                    $original = is_file($target) ? file_get_contents($target) : '';
+                    // Se o conteúdo não contém estrutura HTML completa, aplicar apenas no <main> como proteção
+                    if (stripos($content, '<html') === false || stripos($content, '<body') === false) {
+                        $safeHtml = replace_main_content($original, $content);
+                        backup_file($target, $backupDir);
+                        if (file_put_contents($target, $safeHtml) === false) {
+                            $page_msg = 'Falha ao salvar (proteção de estrutura HTML).';
+                        } else {
+                            $page_msg = 'Conteúdo salvo no <main> (estrutura HTML ausente).';
+                        }
+                    } else {
+                        backup_file($target, $backupDir);
+                        if (file_put_contents($target, $content) === false) {
+                            $page_msg = 'Falha ao salvar página.';
+                        } else {
+                            $page_msg = 'Página salva: ' . htmlspecialchars($page);
+                        }
+                    }
+                }
             }
         }
     }
