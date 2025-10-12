@@ -1,16 +1,12 @@
-# Render Blueprint para site estático do Grafmundial
+# Render Blueprint para Web Service Docker único (frontend + /admin)
 previews:
   generation: automatic
 services:
   - type: web
     name: grafmundial-site
-    runtime: static
+    runtime: docker
     branch: main
-    # Publica diretamente a partir da raiz do repositório (conteúdo estático)
-    staticPublishPath: ./frontend
-    # Sem etapa de build; é um site HTML/CSS/JS puro
-    buildCommand: ""
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: max-age=600
+    rootDir: .
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
