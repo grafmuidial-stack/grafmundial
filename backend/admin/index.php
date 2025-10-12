@@ -352,7 +352,7 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
     </form>
     <?php if ($editing) { ?>
       <h3>Editando: <?php echo htmlspecialchars($editing); ?></h3>
-      <form method="post" onsubmit="document.querySelector('input[name=editor_mode]').value='fragment';document.querySelector('textarea[name=content_fragment]').value = revertAssetPaths(quill.root.innerHTML);">
+      <form method="post" onsubmit="var em=document.querySelector('input[name=editor_mode]');if(em.value!=='full'){em.value='fragment';document.querySelector('textarea[name=content_fragment]').value = revertAssetPaths(quill.root.innerHTML);}">
         <input type="hidden" name="action" value="save_page">
         <input type="hidden" name="page" value="<?php echo htmlspecialchars($editing); ?>">
         <input type="hidden" name="editor_mode" value="fragment">
@@ -403,6 +403,11 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
       </form>
       <script>
         var quill = new Quill('#editor', { theme: 'snow', modules: { toolbar: '#toolbar' } });
+        // Inicializa o editor com o conteúdo atual da página
+        var initialHtml = <?php echo json_encode($edit_fragment); ?>;
+        if (initialHtml && typeof initialHtml === 'string' && initialHtml.trim() !== '') {
+          quill.clipboard.dangerouslyPasteHTML(initialHtml);
+        }
         
         // Registro de um embed personalizado para HTML seguro
         var BlockEmbed = Quill.import('blots/block/embed');
@@ -474,6 +479,44 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
             toRemove.forEach(n => n.remove());
             return template.innerHTML;
           } catch (e) {
+            return html;
+          }
+        }
+        
+        // Normaliza caminhos de assets antes de enviar para o backend
+        // Evita erro de função indefinida no onsubmit e garante que URLs locais virem caminhos do site
+        function revertAssetPaths(html) {
+          try {
+            const template = document.createElement('template');
+            template.innerHTML = html;
+            const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT, null, false);
+            while (walker.nextNode()) {
+              const el = walker.currentNode;
+              ['src','href'].forEach(attr => {
+                const val = el.getAttribute(attr);
+                if (!val) return;
+                let newVal = val.replace(/\/+/, '/');
+                try {
+                  const u = new URL(newVal, window.location.origin);
+                  if (u.origin === window.location.origin) {
+                    if (u.pathname.startsWith('/uploads/')) {
+                      newVal = '/uploads/' + u.pathname.split('/uploads/')[1];
+                    } else {
+                      newVal = u.pathname + u.search + u.hash;
+                    }
+                  }
+                } catch(e) {
+                  // Not a full URL; keep as-is
+                }
+                // Garantir caminho absoluto para assets comuns
+                if (/^(logo\.png|styles\.css|.*\.(png|jpg|jpeg|svg|gif))$/i.test(newVal) && !newVal.startsWith('/')) {
+                  newVal = '/' + newVal;
+                }
+                el.setAttribute(attr, newVal);
+              });
+            }
+            return template.innerHTML;
+          } catch(e) {
             return html;
           }
         }
