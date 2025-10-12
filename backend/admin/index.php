@@ -105,25 +105,25 @@ function apply_menu_to_all_pages($docroot, $menuHtml) {
             // Se não existe, insere após <header>
             $new = preg_replace('/<header[^>]*>.*?<\/header>/is', '$0' . $menuHtml, $html, 1);
         }
-+       // Garantir que o <header> possua class="site-header" para manter o background
-+       if ($new && preg_match('/<header[^>]*>/i', $new, $hm)) {
-+         $headerTag = $hm[0];
-+         if (stripos($headerTag, 'site-header') === false) {
-+           if (stripos($headerTag, 'class=') === false) {
-+             $newHeaderTag = preg_replace('/<header/i', '<header class="site-header"', $headerTag);
-+           } else {
-+             $newHeaderTag = preg_replace('/class=("|\\')([^"\\']*)(\\1)/i', 'class=$1$2 site-header$1', $headerTag);
-+           }
-+           $new = str_replace($headerTag, $newHeaderTag, $new);
-+         }
-+       }
-         if ($new && $new !== $html) {
-             backup_file($path, $GLOBALS['backupDir']);
-             file_put_contents($path, $new);
-             $applied++;
-         }
-     }
-     return $applied;
+        // Garantir que o <header> possua class="site-header" para manter o background
+        if ($new && preg_match('/<header[^>]*>/i', $new, $hm)) {
+          $headerTag = $hm[0];
+          if (stripos($headerTag, 'site-header') === false) {
+            if (stripos($headerTag, 'class=') === false) {
+              $newHeaderTag = preg_replace('/<header/i', '<header class="site-header"', $headerTag);
+            } else {
+              $newHeaderTag = preg_replace('/class=("|\')([^"\']*)(\1)/i', 'class=$1$2 site-header$1', $headerTag);
+            }
+            $new = str_replace($headerTag, $newHeaderTag, $new);
+          }
+        }
+        if ($new && $new !== $html) {
+            backup_file($path, $GLOBALS['backupDir']);
+            file_put_contents($path, $new);
+            $applied++;
+        }
+    }
+    return $applied;
 }
 // ===== Utilitários para edição segura do conteúdo principal =====
 function extract_main_content($html) {
