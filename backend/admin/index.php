@@ -498,7 +498,18 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
               ['src','href'].forEach(attr => {
                 const val = el.getAttribute(attr);
                 if (!val) return;
-                let newVal = val.replace(/\/+/, '/');
+                const valTrim = val.trim();
+                // Não reescrever links externos ou esquemas especiais (mailto, tel, whatsapp, etc.)
+                const isScheme = /^[a-z][a-z0-9+.-]*:/i.test(valTrim); // http:, https:, mailto:, tel:, whatsapp:
+                const isProtocolRelative = /^\/\//.test(valTrim); // //example.com
+                const domainOnly = valTrim.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+                const isKnownExternal = /^(wa\.me|api\.whatsapp\.com|facebook\.com|instagram\.com|tiktok\.com|linkedin\.com|youtube\.com)\b/i.test(domainOnly);
+                if (isScheme || isProtocolRelative || isKnownExternal) {
+                  // manter exatamente como informado
+                  el.setAttribute(attr, valTrim);
+                  return;
+                }
+                let newVal = valTrim.replace(/\/+/, '/');
                 try {
                   const u = new URL(newVal, window.location.origin);
                   if (u.origin === window.location.origin) {
