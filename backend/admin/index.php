@@ -275,6 +275,8 @@ if (isset($_GET['edit'])) {
     }
 }
 $pages = list_pages($DOCROOT);
+$metaPath = $uploadsDir . '/admin_meta.json';
+if (!is_file($metaPath)) { file_put_contents($metaPath, json_encode(['hidden_pages'=>[]], JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE)); }
 
 // ====== Upload ======
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file']) && (!isset($_POST['action']) || !in_array($_POST['action'], ['save_page','create_page','delete_page','save_menu']))) {
@@ -525,11 +527,12 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
 
     <?php } else { ?>
       <table>
-        <thead><tr><th>Arquivo</th><th class="actions">Ações</th></tr></thead>
+        <thead><tr><th>Arquivo</th><th>Status</th><th class="actions">Ações</th></tr></thead>
         <tbody>
-          <?php foreach ($pages as $p): ?>
+          <?php foreach ($pages as $p): $hidden = is_hidden_page_meta($meta, $p); ?>
             <tr>
               <td><?php echo htmlspecialchars($p); ?></td>
+              <td><?php echo $hidden ? 'Oculta' : 'Visível'; ?></td>
               <td class="actions">
                 <a href="/<?php echo rawurlencode($p); ?>" target="_blank">Ver</a>
                 <a href="/admin?tab=pages&edit=<?php echo rawurlencode($p); ?>" style="margin-left:8px">Editar</a>
@@ -537,6 +540,17 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
                   <input type="hidden" name="action" value="delete_page">
                   <input type="hidden" name="page" value="<?php echo htmlspecialchars($p); ?>">
                   <button type="submit">Excluir</button>
+                </form>
+                <form method="post" style="display:inline">
+                  <input type="hidden" name="page" value="<?php echo htmlspecialchars($p); ?>">
+                  <input type="hidden" name="action" value="<?php echo $hidden ? 'show_page' : 'hide_page'; ?>">
+                  <button type="submit" style="margin-left:8px"><?php echo $hidden ? 'Exibir' : 'Ocultar'; ?></button>
+                </form>
+                <form method="post" style="display:inline">
+                  <input type="hidden" name="action" value="duplicate_page">
+                  <input type="hidden" name="page" value="<?php echo htmlspecialchars($p); ?>">
+                  <input type="text" name="new_page_name" placeholder="Novo nome" style="width:140px">
+                  <button type="submit" style="margin-left:4px">Duplicar</button>
                 </form>
               </td>
             </tr>
@@ -583,3 +597,103 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
 <?php } ?>
 </body>
 </html>
+
+// Metadados de páginas (ocultas)
+function get_meta($metaPath) {
+    if (is_file($metaPath)) {
+        $j = json_decode(file_get_contents($metaPath), true);
+        if (is_array($j)) return $j;
+    }
+    return ['hidden_pages'=>[]];
+}
+function save_meta($metaPath, $meta) {
+    @file_put_contents($metaPath, json_encode($meta, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE));
+}
+function is_hidden_page_meta($meta, $page) {
+    return in_array($page, $meta['hidden_pages'] ?? []);
+}
+function hide_page_meta(&$meta, $page) {
+    if (!is_hidden_page_meta($meta,$page)) { $meta['hidden_pages'][] = $page; }
+}
+function show_page_meta(&$meta, $page) {
+    $meta['hidden_pages'] = array_values(array_diff($meta['hidden_pages'] ?? [], [$page]));
+}
+// Excluir página
+if (isset($_POST['action']) && $_POST['action'] === 'delete_page') {
+    $page = sanitize_page_name($_POST['page'] ?? '');
+    if (!$page) {
+        $page_msg = 'Nome de página inválido para exclusão.';
+    } else {
+        if ($page === 'index.html') {
+            $page_msg = 'Não é permitido excluir index.html.';
+        } else {
+            $path = $DOCROOT . '/' . $page;
+            if (is_file($path)) {
+                if (unlink($path)) {
+                    $page_msg = 'Página excluída: ' . htmlspecialchars($page);
+                } else {
+                    $page_msg = 'Falha ao excluir página.';
+                }
+            } else {
+                $page_msg = 'Arquivo não encontrado para exclusão.';
+            }
+        }
+    }
+}
+// Ocultar página
+if (isset($_POST['action']) && $_POST['action'] === 'hide_page') {
+    $page = sanitize_page_name($_POST['page'] ?? '');
+    if (!$page) {
+        $page_msg = 'Nome de página inválido para ocultar.';
+    } else {
+        $meta = get_meta($metaPath);
+        hide_page_meta($meta, $page);
+        save_meta($metaPath, $meta);
+        $page_msg = 'Página ocultada: ' . htmlspecialchars($page);
+    }
+}
+// Exibir página
+if (isset($_POST['action']) && $_POST['action'] === 'show_page') {
+    $page = sanitize_page_name($_POST['page'] ?? '');
+    if (!$page) {
+        $page_msg = 'Nome de página inválido para exibir.';
+    } else {
+        $meta = get_meta($metaPath);
+        show_page_meta($meta, $page);
+        save_meta($metaPath, $meta);
+        $page_msg = 'Página marcada como visível: ' . htmlspecialchars($page);
+    }
+}
+// Duplicar página
+if (isset($_POST['action']) && $_POST['action'] === 'duplicate_page') {
+    $src = sanitize_page_name($_POST['page'] ?? '');
+    $newName = trim($_POST['new_page_name'] ?? '');
+    $slug = slugify($newName);
+    if (!$src || !$slug) {
+        $page_msg = 'Parâmetros inválidos para duplicação.';
+    } else {
+        $destFile = sanitize_page_name($slug . '.html');
+        if (!$destFile) {
+            $page_msg = 'Nome de destino inválido após sanitização.';
+        } else {
+            $srcPath = $DOCROOT . '/' . $src;
+            $destPath = $DOCROOT . '/' . $destFile;
+            if (!is_file($srcPath)) {
+                $page_msg = 'Arquivo de origem não encontrado.';
+            } elseif (file_exists($destPath)) {
+                $page_msg = 'Já existe uma página com este nome.';
+            } else {
+                $content = file_get_contents($srcPath);
+                if ($content === false) {
+                    $page_msg = 'Falha ao ler página de origem.';
+                } else {
+                    if (file_put_contents($destPath, $content) === false) {
+                        $page_msg = 'Falha ao criar página duplicada.';
+                    } else {
+                        $page_msg = 'Página duplicada: ' . htmlspecialchars($destFile);
+                    }
+                }
+            }
+        }
+    }
+}
