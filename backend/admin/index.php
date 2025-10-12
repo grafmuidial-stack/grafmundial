@@ -422,6 +422,34 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
         }
         Quill.register(HtmlBlock);
         
+        // Inserção de HTML bruto no editor sem exigir URL (https)
+        if (document.getElementById('btn-insert-html')) {
+          document.getElementById('btn-insert-html').addEventListener('click', function() {
+            var input = prompt('Cole o código HTML a ser inserido dentro do conteúdo:');
+            if (input && input.trim()) {
+              var clean = sanitizeHtml(input);
+              var range = quill.getSelection(true) || { index: quill.getLength() };
+              quill.insertEmbed(range.index, 'html', clean, Quill.sources.USER);
+              quill.setSelection(range.index + 1);
+            }
+          });
+        }
+        
+        // Opcional: inserção de iframe por URL (não obrigatório). Mantém compatibilidade.
+        if (document.getElementById('btn-insert-iframe')) {
+          document.getElementById('btn-insert-iframe').addEventListener('click', function() {
+            var src = prompt('Informe a URL do iframe (ex.: https://...):');
+            if (src && src.trim()) {
+              // Permite http/https; bloqueia apenas javascript: via sanitizeHtml
+              var html = '<iframe src="' + src.trim() + '" style="width:100%;min-height:300px" loading="lazy" referrerpolicy="no-referrer"></iframe>';
+              var clean = sanitizeHtml(html);
+              var range = quill.getSelection(true) || { index: quill.getLength() };
+              quill.insertEmbed(range.index, 'html', clean, Quill.sources.USER);
+              quill.setSelection(range.index + 1);
+            }
+          });
+        }
+        
         // Função de sanitização robusta para o HTML inserido
         function sanitizeHtml(html) {
           try {
