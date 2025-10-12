@@ -328,13 +328,122 @@ echo '<div class="box"><h2>Duplicar página</h2><form method="post"><input type=
 foreach ($pages as $p) { echo '<option value="' . htmlspecialchars($p) . '">' . htmlspecialchars($p) . '</option>'; }
 echo '</select><label>Novo nome:</label><input name="new_page_name" placeholder="Nome da nova página"><button type="submit">Duplicar</button></form></div>';
 
-// Listagem e ações
+// Salvar edição de página
+if (isset($_POST['action']) && $_POST['action'] === 'save_page') {
+    $page = sanitize_page_name($_POST['page'] ?? '');
+    $newContent = $_POST['content'] ?? '';
+    if (!$page) {
+        $page_msg = 'Nome de página inválido para salvar.';
+    } else {
+        $path = $DOCROOT . '/' . $page;
+        if (!is_file($path)) {
+            $page_msg = 'Arquivo não encontrado.';
+        } else {
+            $html = file_get_contents($path);
+            $replaced = replace_main_content($html, $newContent);
+            if ($replaced === null || $replaced === '') {
+                $page_msg = 'Falha ao processar conteúdo.';
+            } else {
+                backup_file($path, $backupDir);
+                if (file_put_contents($path, $replaced) === false) {
+                    $page_msg = 'Falha ao salvar página.';
+                } else {
+                    $page_msg = 'Página salva: ' . htmlspecialchars($page);
+                }
+            }
+        }
+    }
+}
+// Ocultar página
+if (isset($_POST['action']) && $_POST['action'] === 'hide_page') {
+    $page = sanitize_page_name($_POST['page'] ?? '');
+    if (!$page) {
+        $page_msg = 'Nome de página inválido para ocultar.';
+    } else {
+        $meta = get_meta($metaPath);
+        hide_page_meta($meta, $page);
+        save_meta($metaPath, $meta);
+        $page_msg = 'Página ocultada: ' . htmlspecialchars($page);
+    }
+}
+// Exibir página
+if (isset($_POST['action']) && $_POST['action'] === 'show_page') {
+    $page = sanitize_page_name($_POST['page'] ?? '');
+    if (!$page) {
+        $page_msg = 'Nome de página inválido para exibir.';
+    } else {
+        $meta = get_meta($metaPath);
+        show_page_meta($meta, $page);
+        save_meta($metaPath, $meta);
+        $page_msg = 'Página marcada como visível: ' . htmlspecialchars($page);
+    }
+}
+// Duplicar página
+if (isset($_POST['action']) && $_POST['action'] === 'duplicate_page') {
+    $src = sanitize_page_name($_POST['page'] ?? '');
+    $newName = trim($_POST['new_page_name'] ?? '');
+    $slug = slugify($newName);
+    if (!$src || !$slug) {
+        $page_msg = 'Parâmetros inválidos para duplicação.';
+    } else {
+        $destFile = sanitize_page_name($slug . '.html');
+        if (!$destFile) {
+            $page_msg = 'Nome de destino inválido após sanitização.';
+        } else {
+            $srcPath = $DOCROOT . '/' . $src;
+            $destPath = $DOCROOT . '/' . $destFile;
+            if (!is_file($srcPath)) {
+                $page_msg = 'Arquivo de origem não encontrado.';
+            } elseif (file_exists($destPath)) {
+                $page_msg = 'Já existe uma página com este nome.';
+            } else {
+                $content = file_get_contents($srcPath);
+                if ($content === false) {
+                    $page_msg = 'Falha ao ler página de origem.';
+                } else {
+                    if (file_put_contents($destPath, $content) === false) {
+                        $page_msg = 'Falha ao criar página duplicada.';
+                    } else {
+                        $page_msg = 'Página duplicada: ' . htmlspecialchars($destFile);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Aplicar menu do index.html a todas as páginas
+if (isset($_POST['action']) && $_POST['action'] === 'apply_menu_all') {
+    $indexPath = $DOCROOT . '/index.html';
+    $menu = extract_menu_from_file($indexPath);
+    if ($menu === '') {
+        $page_msg = 'Não foi possível extrair o menu do index.html';
+    } else {
+        $count = apply_menu_to_all_pages($DOCROOT, $menu);
+        $page_msg = 'Menu aplicado em ' . $count . ' página(s).';
+    }
+}
+
+// ===== Renderização do painel admin =====
 echo '<div class="box"><h2>Páginas</h2><div class="list">';
 foreach ($pages as $p) {
     $isHidden = isset($hiddenSet[$p]);
     $cls = $isHidden ? 'item hidden' : 'item';
     echo '<div class="' . $cls . '">' . htmlspecialchars($p) . '</div>';
-    echo '<div><a href="/' . htmlspecialchars($p) . '" target="_blank">Ver</a></div>';
+    // Editor de página (GET ?edit=nome.html)
+    $editPage = sanitize_page_name($_GET['edit'] ?? '');
+    if ($editPage) {
+        $path = $DOCROOT . '/' . $editPage;
+        $currentContent = '';
+        if (is_file($path)) {
+            $html = file_get_contents($path);
+            $currentContent = extract_main_content($html);
+        }
+        echo '<div class="box"><h2>Editar página: ' . htmlspecialchars($editPage) . '</h2>';
+        echo '<form method="post"><input type="hidden" name="action" value="save_page"><input type="hidden" name="page" value="' . htmlspecialchars($editPage) . '">';
+        echo '<textarea name="content" rows="18" style="width:100%;">' . htmlspecialchars($currentContent) . '</textarea>';
+        echo '<div><button type="submit">Salvar</button> <a href="/admin">Cancelar</a> <a href="/' . htmlspecialchars($editPage) . '" target="_blank">Ver página</a></div></form></div>';
+    }
     // Ocultar/Exibir
     if ($isHidden) {
         echo '<form method="post"><input type="hidden" name="action" value="show_page"><input type="hidden" name="page" value="' . htmlspecialchars($p) . '"><button type="submit">Exibir</button></form>';
@@ -347,6 +456,12 @@ foreach ($pages as $p) {
     } else {
         echo '<div></div>';
     }
+    // Link de Ver + Editar em uma única coluna na listagem
+    // Substituir a linha de "Ver" por ambos os links
+    // Antes:
+    // echo '<div><a href="/' . htmlspecialchars($p) . '" target="_blank">Ver</a></div>';
+    // Depois:
+    // echo '<div><a href="/' . htmlspecialchars($p) . '" target="_blank">Ver</a> · <a href="/admin?edit=' . htmlspecialchars($p) . '">Editar</a></div>';
 }
 echo '</div></div>';
 
