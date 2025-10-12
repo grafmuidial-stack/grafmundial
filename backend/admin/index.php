@@ -11,6 +11,28 @@ $uploadsDir = $DOCROOT . '/uploads';
 if (!is_dir($uploadsDir)) { mkdir($uploadsDir, 0777, true); }
 $backupDir = $uploadsDir . '/backups';
 if (!is_dir($backupDir)) { mkdir($backupDir, 0777, true); }
+// Caminho do meta (páginas ocultas e outros dados do admin)
+$metaPath = $DOCROOT . '/uploads/admin_meta.json';
+if (!is_file($metaPath)) {
+    @file_put_contents($metaPath, json_encode(['hidden' => []], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
+
+function get_meta($metaPath) {
+    $raw = @file_get_contents($metaPath);
+    $data = json_decode($raw, true);
+    if (!is_array($data)) { $data = ['hidden' => []]; }
+    if (!isset($data['hidden']) || !is_array($data['hidden'])) { $data['hidden'] = []; }
+    return $data;
+}
+function save_meta($metaPath, $meta) {
+    @file_put_contents($metaPath, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
+function hide_page_meta(&$meta, $page) {
+    if (!in_array($page, $meta['hidden'])) { $meta['hidden'][] = $page; }
+}
+function show_page_meta(&$meta, $page) {
+    $meta['hidden'] = array_values(array_filter($meta['hidden'], function($x) use ($page) { return $x !== $page; }));
+}
 
 function backup_file($path, $backupDir) {
     if (is_file($path)) {
@@ -262,3 +284,70 @@ if (isset($_POST['action']) && $_POST['action'] === 'duplicate_page') {
         }
     }
 }
+
+// Aplicar menu do index.html a todas as páginas
+if (isset($_POST['action']) && $_POST['action'] === 'apply_menu_all') {
+    $indexPath = $DOCROOT . '/index.html';
+    $menu = extract_menu_from_file($indexPath);
+    if ($menu === '') {
+        $page_msg = 'Não foi possível extrair o menu do index.html';
+    } else {
+        $count = apply_menu_to_all_pages($DOCROOT, $menu);
+        $page_msg = 'Menu aplicado em ' . $count . ' página(s).';
+    }
+}
+
+// ===== Renderização do painel admin =====
+$pages = list_pages($DOCROOT);
+$meta = get_meta($metaPath);
+$hiddenSet = [];
+foreach (($meta['hidden'] ?? []) as $h) { $hiddenSet[$h] = true; }
+
+echo '<!doctype html><html><head><meta charset="utf-8"><title>Admin - Grafica Mundial</title><style>
+  body{font-family:sans-serif;max-width:1000px;margin:24px auto;padding:16px;background:#f7f7f7;color:#222}
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .box{background:#fff;border:1px solid #ddd;border-radius:8px;margin:12px 0;padding:12px}
+  .list{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center}
+  .list .item{display:contents}
+  input,select,button{padding:8px;margin:4px}
+  .msg{padding:10px;border-radius:6px;background:#e9f6ff;border:1px solid #b6e1ff;margin-bottom:12px}
+  .hidden{opacity:0.6}
+</style></head><body>';
+
+echo '<header><h1>Admin</h1><a href="/admin?logout=1">Sair</a></header>';
+if (!empty($page_msg)) { echo '<div class="msg">' . htmlspecialchars($page_msg) . '</div>'; }
+
+// Criar página
+echo '<div class="box"><h2>Criar página</h2><form method="post"><input type="hidden" name="action" value="create_page"><input name="new_page_name" placeholder="Nome da nova página"><button type="submit">Criar</button></form></div>';
+
+// Aplicar menu
+echo '<div class="box"><h2>Menu</h2><p>Aplicar o menu do index.html a todas as páginas.</p><form method="post"><input type="hidden" name="action" value="apply_menu_all"><button type="submit">Aplicar menu do index</button></form></div>';
+
+// Duplicar página
+echo '<div class="box"><h2>Duplicar página</h2><form method="post"><input type="hidden" name="action" value="duplicate_page"><label>Origem:</label><select name="page">';
+foreach ($pages as $p) { echo '<option value="' . htmlspecialchars($p) . '">' . htmlspecialchars($p) . '</option>'; }
+echo '</select><label>Novo nome:</label><input name="new_page_name" placeholder="Nome da nova página"><button type="submit">Duplicar</button></form></div>';
+
+// Listagem e ações
+echo '<div class="box"><h2>Páginas</h2><div class="list">';
+foreach ($pages as $p) {
+    $isHidden = isset($hiddenSet[$p]);
+    $cls = $isHidden ? 'item hidden' : 'item';
+    echo '<div class="' . $cls . '">' . htmlspecialchars($p) . '</div>';
+    echo '<div><a href="/' . htmlspecialchars($p) . '" target="_blank">Ver</a></div>';
+    // Ocultar/Exibir
+    if ($isHidden) {
+        echo '<form method="post"><input type="hidden" name="action" value="show_page"><input type="hidden" name="page" value="' . htmlspecialchars($p) . '"><button type="submit">Exibir</button></form>';
+    } else {
+        echo '<form method="post"><input type="hidden" name="action" value="hide_page"><input type="hidden" name="page" value="' . htmlspecialchars($p) . '"><button type="submit">Ocultar</button></form>';
+    }
+    // Excluir (não permitir excluir index.html)
+    if (strtolower($p) !== 'index.html') {
+        echo '<form method="post" onsubmit="return confirm(\'Excluir ' . htmlspecialchars($p) . '?\');"><input type="hidden" name="action" value="delete_page"><input type="hidden" name="page" value="' . htmlspecialchars($p) . '"><button type="submit">Excluir</button></form>';
+    } else {
+        echo '<div></div>';
+    }
+}
+echo '</div></div>';
+
+echo '</body></html>';
