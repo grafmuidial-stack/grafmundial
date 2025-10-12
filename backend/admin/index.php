@@ -124,9 +124,9 @@ function extract_main_content($html) {
     return $html; // fallback
 }
 function replace_main_content($html, $newContent) {
-    // Caso já exista <main>, substitui apenas o conteúdo de <main>
-    if (preg_match('/<main[^>]*>[\s\S]*?<\/main>/i', $html)) {
-        return preg_replace('/<main[^>]*>[\s\S]*?<\/main>/i', '<main class="content">' . $newContent . '</main>', $html, 1);
+    // Caso já exista <main>, substitui apenas o conteúdo de <main> preservando atributos da tag existente
+    if (preg_match('/(<main[^>]*>)[\s\S]*?(<\/main>)/i', $html)) {
+        return preg_replace('/(<main[^>]*>)[\s\S]*?(<\/main>)/i', '$1' . $newContent . '$2', $html, 1);
     }
     // Se não houver <main> mas houver <body>, preserva header/nav/footer e injeta um <main>
     if (preg_match('/<body[^>]*>[\s\S]*?<\/body>/i', $html)) {
@@ -138,7 +138,7 @@ function replace_main_content($html, $newContent) {
         if (preg_match('/<nav[^>]*class="[^"]*main-nav[^"]*"[^>]*>[\s\S]*?<\/nav>/i', $html, $mNav)) { $nav = $mNav[0]; }
         $footer = '';
         if (preg_match('/<footer[^>]*>[\s\S]*?<\/footer>/i', $html, $mFooter)) { $footer = $mFooter[0]; }
-        $newInner = $header . $nav . '<main class="content">' . $newContent . '</main>' . $footer;
+        $newInner = $header . $nav . '<main>' . $newContent . '</main>' . $footer;
         return preg_replace('/<body[^>]*>[\s\S]*?<\/body>/i', $openBodyTag . $newInner . '</body>', $html, 1);
     }
     // Fallback: se não houver nem <main> nem <body>, retorna só o fragmento (quem salvou em modo avançado sem estrutura)
@@ -508,9 +508,10 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
                 } catch(e) {
                   // Not a full URL; keep as-is
                 }
-                // Garantir caminho absoluto para assets comuns
-                if (/^(logo\.png|styles\.css|.*\.(png|jpg|jpeg|svg|gif))$/i.test(newVal) && !newVal.startsWith('/')) {
-                  newVal = '/' + newVal;
+                // Evitar normalizar indevidamente caminhos relativos válidos
+                if (/^\/?(logo\.png|styles\.css|.*\.(png|jpg|jpeg|svg|gif))$/i.test(newVal)) {
+                  // Garante apenas que tenha uma raiz única
+                  if (!newVal.startsWith('/')) newVal = '/' + newVal.replace(/^\/+/, '');
                 }
                 el.setAttribute(attr, newVal);
               });
