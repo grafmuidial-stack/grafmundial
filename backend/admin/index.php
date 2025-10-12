@@ -277,6 +277,7 @@ if (isset($_GET['edit'])) {
 $pages = list_pages($DOCROOT);
 $metaPath = $uploadsDir . '/admin_meta.json';
 if (!is_file($metaPath)) { file_put_contents($metaPath, json_encode(['hidden_pages'=>[]], JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE)); }
+$meta = get_meta($metaPath);
 
 // ====== Upload ======
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file']) && (!isset($_POST['action']) || !in_array($_POST['action'], ['save_page','create_page','delete_page','save_menu']))) {
