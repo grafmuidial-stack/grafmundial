@@ -21,3 +21,6 @@ config.local.php
 
 # Painel administrativo (PHP - não funciona no GitHub Pages)
 /admin/
+# Backups gerados pelo Admin
+frontend/uploads/backups/
+*.bak
