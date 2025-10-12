@@ -598,6 +598,7 @@ $files = array_values(array_filter(scandir($uploadsDir), function($f){ return !i
 </body>
 </html>
 
+<?php
 // Metadados de páginas (ocultas)
 function get_meta($metaPath) {
     if (is_file($metaPath)) {
