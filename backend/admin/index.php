@@ -192,6 +192,44 @@ function replace_main_content($html, $newContent) {
     return $newContent;
 }
 
+// ===== Upload e substituição de imagem =====
+function detect_image_extension($filePath, $fallbackMime) {
+    $mime = $fallbackMime;
+    if (function_exists('finfo_open')) {
+        $f = finfo_open(FILEINFO_MIME_TYPE);
+        if ($f) { $m = finfo_file($f, $filePath); if ($m) $mime = $m; finfo_close($f); }
+    }
+    $map = [
+        'image/png' => 'png',
+        'image/jpeg' => 'jpg',
+        'image/jpg' => 'jpg',
+        'image/webp' => 'webp',
+        'image/svg+xml' => 'svg'
+    ];
+    return $map[strtolower($mime)] ?? null;
+}
+function safe_image_filename($ext) {
+    $ts = date('Ymd-His');
+    $rand = mt_rand(1000,9999);
+    return 'img-' . $ts . '-' . $rand . '.' . $ext;
+}
+function replace_first_img_src_in_main($html, $newSrc) {
+    $main = extract_main_content($html);
+    $updatedMain = null;
+    // Substitui o src da primeira <img ...>
+    $updatedMain = preg_replace_callback(
+        '/(<img[^>]*\bsrc=)("|\\')(.*?)(\2)/i',
+        function($m) use ($newSrc) { return $m[1] . $m[2] . $newSrc . $m[4]; },
+        $main,
+        1
+    );
+    if ($updatedMain === null || $updatedMain === $main) {
+        // Se não há <img>, insere no topo do <main>
+        $updatedMain = '<img src="' . htmlspecialchars($newSrc, ENT_QUOTES) . '" alt="">' . $main;
+    }
+    return replace_main_content($html, $updatedMain);
+}
+
 $page_msg = '';
 // Criar página
 if (isset($_POST['action']) && $_POST['action'] === 'create_page') {
@@ -338,6 +376,51 @@ if (isset($_POST['action']) && $_POST['action'] === 'save_page') {
     }
 }
 
+// Upload de imagem e substituição opcional da primeira imagem do conteúdo
+if (isset($_POST['action']) && $_POST['action'] === 'upload_image') {
+    $page = sanitize_page_name($_POST['page'] ?? '');
+    if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+        $page_msg = 'Falha no upload: arquivo inválido.';
+    } else {
+        $tmp = $_FILES['image']['tmp_name'];
+        $mime = $_FILES['image']['type'] ?? '';
+        $ext = detect_image_extension($tmp, $mime);
+        if (!$ext) {
+            $page_msg = 'Formato de imagem não suportado (use PNG, JPG, WEBP, SVG).';
+        } else {
+            $fname = safe_image_filename($ext);
+            $dest = $uploadsDir . '/' . $fname;
+            if (!@move_uploaded_file($tmp, $dest)) {
+                $page_msg = 'Falha ao salvar a imagem.';
+            } else {
+                $url = '/uploads/' . $fname;
+                // Substituir primeira imagem se solicitado e página válida
+                if (!empty($_POST['replace_first']) && $page) {
+                    $path = $DOCROOT . '/' . $page;
+                    if (is_file($path)) {
+                        $html = file_get_contents($path);
+                        if ($html !== false) {
+                            $newHtml = replace_first_img_src_in_main($html, $url);
+                            backup_file($path, $backupDir);
+                            if (file_put_contents($path, $newHtml) === false) {
+                                $page_msg = 'Imagem enviada, mas falhou ao substituir na página.';
+                            } else {
+                                $page_msg = 'Imagem enviada e substituída: ' . htmlspecialchars($url);
+                            }
+                        } else {
+                            $page_msg = 'Imagem enviada, mas falhou ao ler a página.';
+                        }
+                    } else {
+                        $page_msg = 'Imagem enviada: ' . htmlspecialchars($url) . ' (página não encontrada para substituir).';
+                    }
+                } else {
+                    $page_msg = 'Imagem enviada: ' . htmlspecialchars($url);
+                }
+            }
+        }
+    }
+}
+
 // ===== Renderização do painel admin =====
 $pages = list_pages($DOCROOT);
 // Recarregar meta e conjunto de ocultas após possíveis alterações
@@ -386,6 +469,17 @@ if ($editPage) {
     echo '<form method="post"><input type="hidden" name="action" value="save_page"><input type="hidden" name="page" value="' . htmlspecialchars($editPage) . '">';
     echo '<textarea name="content" rows="18" style="width:100%;">' . htmlspecialchars($currentContent) . '</textarea>';
     echo '<div><button type="submit">Salvar</button> <a href="/admin">Cancelar</a> <a href="/' . htmlspecialchars($editPage) . '" target="_blank">Ver página</a></div></form></div>';
+
+    // Formulário de upload de imagem
+    echo '<div class="box"><h2>Imagem da página</h2>';
+    echo '<form method="post" enctype="multipart/form-data">';
+    echo '<input type="hidden" name="action" value="upload_image">';
+    echo '<input type="hidden" name="page" value="' . htmlspecialchars($editPage) . '">';
+    echo '<input type="file" name="image" accept="image/*">';
+    echo '<label style="display:block;margin-top:8px"><input type="checkbox" name="replace_first" value="1"> Substituir a primeira imagem do conteúdo</label>';
+    echo '<div style="margin-top:8px"><button type="submit">Enviar imagem</button></div>';
+    echo '<p style="font-size:12px;color:#555;margin-top:8px">Imagens são salvas em <code>/uploads</code>. Após enviar, você pode colar a URL no conteúdo ou marcar para substituir automaticamente.</p>';
+    echo '</form></div>';
 }
 
 // ===== Renderização do painel admin =====
