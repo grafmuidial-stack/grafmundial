@@ -211,19 +211,17 @@ function detect_image_extension($filePath, $fallbackMime) {
 function safe_image_filename($ext) {
     $ts = date('Ymd-His');
     $rand = mt_rand(1000,9999);
-    return 'img-' . $ts . '-' . $rand . '.' . $ext;
+    return sprintf('img-%s-%s.%s', $ts, $rand, $ext);
 }
 function replace_first_img_src_in_main($html, $newSrc) {
     $main = extract_main_content($html);
-    $updatedMain = null;
-    // Substitui o src da primeira <img ...>
-    $updatedMain = preg_replace_callback(
-        '/(<img[^>]*\bsrc=)("|\\')(.*?)(\2)/i',
-        function($m) use ($newSrc) { return $m[1] . $m[2] . $newSrc . $m[4]; },
-        $main,
-        1
-    );
-    if ($updatedMain === null || $updatedMain === $main) {
+    $updatedMain = $main;
+    // Encontrar primeira imagem e substituir seu src manualmente
+    if (preg_match('/<img[^>]*\bsrc=("|\')(.*?)\1/i', $main, $m, PREG_OFFSET_CAPTURE)) {
+        $oldSrc = $m[2][0];
+        $pos = $m[2][1];
+        $updatedMain = substr($main, 0, $pos) . $newSrc . substr($main, $pos + strlen($oldSrc));
+    } else {
         // Se não há <img>, insere no topo do <main>
         $updatedMain = '<img src="' . htmlspecialchars($newSrc, ENT_QUOTES) . '" alt="">' . $main;
     }
