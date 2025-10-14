@@ -321,6 +321,17 @@ echo '<header><h1>Admin</h1><a href="/admin?logout=1">Sair</a></header>';
 // Mostrar mensagem após processar ações
 if (!empty($page_msg)) { echo '<div class="msg">' . htmlspecialchars($page_msg) . '</div>'; }
 
+// Criar página
+echo '<div class="box"><h2>Criar página</h2><form method="post"><input type="hidden" name="action" value="create_page"><input name="new_page_name" placeholder="Nome da nova página"><button type="submit">Criar</button></form></div>';
+
+// Aplicar menu
+echo '<div class="box"><h2>Menu</h2><p>Aplicar o menu do index.html a todas as páginas.</p><form method="post"><input type="hidden" name="action" value="apply_menu_all"><button type="submit">Aplicar menu do index</button></form></div>';
+
+// Duplicar página
+echo '<div class="box"><h2>Duplicar página</h2><form method="post"><input type="hidden" name="action" value="duplicate_page"><label>Origem:</label><select name="page">';
+foreach ($pages as $p) { echo '<option value="' . htmlspecialchars($p) . '">' . htmlspecialchars($p) . '</option>'; }
+echo '</select><label>Novo nome:</label><input name="new_page_name" placeholder="Nome da nova página"><button type="submit">Duplicar</button></form></div>';
+
 // Editor de página (GET ?edit=nome.html) — renderizar uma única vez fora do loop
 $editPage = sanitize_page_name($_GET['edit'] ?? '');
 if ($editPage) {
