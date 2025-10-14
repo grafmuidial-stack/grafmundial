@@ -161,9 +161,14 @@ function extract_main_content($html) {
     return $html; // fallback
 }
 function replace_main_content($html, $newContent) {
-    // Caso já exista <main>, substitui apenas o conteúdo de <main> preservando atributos da tag existente
+    // Caso já exista <main>, substitui apenas o conteúdo de <main> usando callback
     if (preg_match('/(<main[^>]*>)[\s\S]*?(<\/main>)/i', $html)) {
-        return preg_replace('/(<main[^>]*>)[\s\S]*?(<\/main>)/i', '$1' . $newContent . '$2', $html, 1);
+        return preg_replace_callback(
+            '/(<main[^>]*>)[\s\S]*?(<\/main>)/i',
+            function($m) use ($newContent) { return $m[1] . $newContent . $m[2]; },
+            $html,
+            1
+        );
     }
     // Se não houver <main> mas houver <body>, preserva header/nav/footer e injeta um <main>
     if (preg_match('/<body[^>]*>[\s\S]*?<\/body>/i', $html)) {
@@ -176,7 +181,12 @@ function replace_main_content($html, $newContent) {
         $footer = '';
         if (preg_match('/<footer[^>]*>[\s\S]*?<\/footer>/i', $html, $mFooter)) { $footer = $mFooter[0]; }
         $newInner = $header . $nav . '<main>' . $newContent . '</main>' . $footer;
-        return preg_replace('/<body[^>]*>[\s\S]*?<\/body>/i', $openBodyTag . $newInner . '</body>', $html, 1);
+        return preg_replace_callback(
+            '/<body[^>]*>[\s\S]*?<\/body>/i',
+            function($m) use ($openBodyTag, $newInner) { return $openBodyTag . $newInner . '</body>'; },
+            $html,
+            1
+        );
     }
     // Fallback: se não houver nem <main> nem <body>, retorna só o fragmento (quem salvou em modo avançado sem estrutura)
     return $newContent;
