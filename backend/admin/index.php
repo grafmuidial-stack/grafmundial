@@ -304,6 +304,20 @@ $meta = get_meta($metaPath);
 $hiddenSet = [];
 foreach (($meta['hidden'] ?? []) as $h) { $hiddenSet[$h] = true; }
 
+// Estrutura HTML e estilos do painel
+echo '<!doctype html><html><head><meta charset="utf-8"><title>Admin - Grafica Mundial</title><style>
+  body{font-family:sans-serif;max-width:1000px;margin:24px auto;padding:16px;background:#f7f7f7;color:#222}
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .box{background:#fff;border:1px solid #ddd;border-radius:8px;margin:12px 0;padding:12px}
+  .list{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center}
+  .list .item{display:contents}
+  input,select,button{padding:8px;margin:4px}
+  .msg{padding:10px;border-radius:6px;background:#e9f6ff;border:1px solid #b6e1ff;margin-bottom:12px}
+  .hidden{opacity:0.6}
+</style></head><body>';
+
+echo '<header><h1>Admin</h1><a href="/admin?logout=1">Sair</a></header>';
+
 // Mostrar mensagem após processar ações
 if (!empty($page_msg)) { echo '<div class="msg">' . htmlspecialchars($page_msg) . '</div>'; }
 
