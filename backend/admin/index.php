@@ -310,6 +310,34 @@ if (isset($_POST['action']) && $_POST['action'] === 'apply_menu_all') {
     }
 }
 
+// Salvar conteúdo da página (substitui conteúdo dentro de <main>)
+if (isset($_POST['action']) && $_POST['action'] === 'save_page') {
+    $page = sanitize_page_name($_POST['page'] ?? '');
+    $content = $_POST['content'] ?? '';
+    if (!$page) {
+        $page_msg = 'Página inválida para salvar.';
+    } else {
+        $path = $DOCROOT . '/' . $page;
+        if (!is_file($path)) {
+            $page_msg = 'Arquivo não encontrado para salvar.';
+        } else {
+            $html = file_get_contents($path);
+            if ($html === false) {
+                $page_msg = 'Falha ao ler arquivo para salvar.';
+            } else {
+                $newHtml = replace_main_content($html, $content);
+                if ($newHtml === null) { $newHtml = $content; }
+                backup_file($path, $backupDir);
+                if (file_put_contents($path, $newHtml) === false) {
+                    $page_msg = 'Falha ao salvar página.';
+                } else {
+                    $page_msg = 'Página salva: ' . htmlspecialchars($page);
+                }
+            }
+        }
+    }
+}
+
 // ===== Renderização do painel admin =====
 $pages = list_pages($DOCROOT);
 // Recarregar meta e conjunto de ocultas após possíveis alterações
