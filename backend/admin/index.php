@@ -4,9 +4,12 @@ session_start();
 
 $USER = getenv('ADMIN_USER') ?: 'admin';
 $PASS = getenv('ADMIN_PASS') ?: 'changeme';
-$DOCROOT = ($_SERVER['DOCUMENT_ROOT'] ?? '/var/www/html');
-// Ajuste automático do docroot em ambiente local (projeto com pasta /frontend)
-if (is_dir($DOCROOT . '/frontend')) { $DOCROOT = $DOCROOT . '/frontend'; }
+$DOCROOT = realpath(__DIR__ . '/../../frontend');
+// Fallback para ambientes onde o caminho relativo não existe
+if (!$DOCROOT || !is_dir($DOCROOT)) {
+    $DOCROOT = ($_SERVER['DOCUMENT_ROOT'] ?? '/var/www/html');
+    if (is_dir($DOCROOT . '/frontend')) { $DOCROOT = $DOCROOT . '/frontend'; }
+}
 $uploadsDir = $DOCROOT . '/uploads';
 if (!is_dir($uploadsDir)) { mkdir($uploadsDir, 0777, true); }
 $backupDir = $uploadsDir . '/backups';
