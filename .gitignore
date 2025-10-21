@@ -23,7 +23,7 @@ config.local.php
 /admin/
 # Backups gerados pelo Admin
 frontend/uploads/backups/
-*.bakgraficamundial.zip
+
 *.zip
 *.zip
 *.zip
