@@ -420,6 +420,60 @@ if (isset($_POST['action']) && $_POST['action'] === 'upload_image') {
 }
 
 // ===== Renderização do painel admin =====
+echo '<!doctype html><html><head><meta charset="utf-8"><title>Admin - Grafica Mundial</title><style>
+  body{font-family:sans-serif;max-width:1000px;margin:24px auto;padding:16px;background:#f7f7f7;color:#222}
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .box{background:#fff;border:1px solid #ddd;border-radius:8px;margin:12px 0;padding:12px}
+  .list{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center}
+  .list .item{display:contents}
+  input,select,button{padding:8px;margin:4px}
+  .msg{padding:10px;border-radius:6px;background:#e9f6ff;border:1px solid #b6e1ff;margin-bottom:12px}
+  .hidden{opacity:0.6}
+</style></head><body>';
+
+echo '<header><h1>Admin</h1><a href="/admin?logout=1">Sair</a></header>';
+
+// Mostrar mensagem após processar ações
+if (!empty($page_msg)) { echo '<div class="msg">' . htmlspecialchars($page_msg) . '</div>'; }
+
+// Criar página
+echo '<div class="box"><h2>Criar página</h2><form method="post"><input type="hidden" name="action" value="create_page"><input name="new_page_name" placeholder="Nome da nova página"><button type="submit">Criar</button></form></div>';
+
+// Aplicar menu
+echo '<div class="box"><h2>Menu</h2><p>Aplicar o menu do index.html a todas as páginas.</p><form method="post"><input type="hidden" name="action" value="apply_menu_all"><button type="submit">Aplicar menu do index</button></form></div>';
+
+// Duplicar página
+echo '<div class="box"><h2>Duplicar página</h2><form method="post"><input type="hidden" name="action" value="duplicate_page"><label>Origem:</label><select name="page">';
+foreach ($pages as $p) { echo '<option value="' . htmlspecialchars($p) . '">' . htmlspecialchars($p) . '</option>'; }
+echo '</select><label>Novo nome:</label><input name="new_page_name" placeholder="Nome da nova página"><button type="submit">Duplicar</button></form></div>';
+
+// Editor de página (GET ?edit=nome.html) — renderizar uma única vez fora do loop
+$editPage = sanitize_page_name($_GET['edit'] ?? '');
+if ($editPage) {
+    $path = $DOCROOT . '/' . $editPage;
+    $currentContent = '';
+    if (is_file($path)) {
+        $html = file_get_contents($path);
+        $currentContent = extract_main_content($html);
+    }
+    echo '<div class="box"><h2>Editar página: ' . htmlspecialchars($editPage) . '</h2>';
+    echo '<form method="post"><input type="hidden" name="action" value="save_page"><input type="hidden" name="page" value="' . htmlspecialchars($editPage) . '">';
+    echo '<textarea name="content" rows="18" style="width:100%;">' . htmlspecialchars($currentContent) . '</textarea>';
+    echo '<div><button type="submit">Salvar</button> <a href="/admin">Cancelar</a> <a href="/' . htmlspecialchars($editPage) . '" target="_blank">Ver página</a></div></form></div>';
+
+    // Formulário de upload de imagem
+    echo '<div class="box"><h2>Imagem da página</h2>';
+    echo '<form method="post" enctype="multipart/form-data">';
+    echo '<input type="hidden" name="action" value="upload_image">';
+    echo '<input type="hidden" name="page" value="' . htmlspecialchars($editPage) . '">';
+    echo '<input type="file" name="image" accept="image/*">';
+    echo '<label style="display:block;margin-top:8px"><input type="checkbox" name="replace_first" value="1"> Substituir a primeira imagem do conteúdo</label>';
+    echo '<div style="margin-top:8px"><button type="submit">Enviar imagem</button></div>';
+    echo '<p style="font-size:12px;color:#555;margin-top:8px">Imagens são salvas em <code>/uploads</code>. Após enviar, você pode colar a URL no conteúdo ou marcar para substituir automaticamente.</p>';
+    echo '</form></div>';
+}
+
+// ===== Renderização do painel admin =====
 $pages = list_pages($DOCROOT);
 // Recarregar meta e conjunto de ocultas após possíveis alterações
 $meta = get_meta($metaPath);
@@ -504,3 +558,57 @@ foreach ($pages as $p) {
 echo '</div></div>';
 
 echo '</body></html>';
+
+
+function mongodb_health_check($uri) {
+    $out = [
+        'uri_present' => !empty($uri),
+        'has_extension' => extension_loaded('mongodb'),
+        'has_client_class' => class_exists('\MongoDB\Client'),
+        'host' => null,
+        'srv_count' => 0,
+        'txt' => [],
+        'tls_connect' => 'não testado',
+    ];
+    if (empty($uri)) { return $out; }
+    if (preg_match('#^mongodb\+srv://[^@]+@([^/]+)#', $uri, $m)) { $out['host'] = $m[1]; }
+    if ($out['host']) {
+        $srv = @dns_get_record('_mongodb._tcp.' . $out['host'], DNS_SRV);
+        $out['srv_count'] = is_array($srv) ? count($srv) : 0;
+        $txt = @dns_get_record($out['host'], DNS_TXT);
+        if (is_array($txt)) {
+            $out['txt'] = array_values(array_filter(array_map(function($t){ return $t['txt'] ?? ''; }, $txt)));
+        }
+        if (!empty($srv)) {
+            $target = $srv[0]['target'] ?? null;
+            $port = $srv[0]['port'] ?? 27017;
+            if ($target) {
+                $ctx = stream_context_create([
+                    'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+                ]);
+                $errno = 0; $errstr = '';
+                $conn = @stream_socket_client('tls://' . $target . ':' . $port, $errno, $errstr, 5, STREAM_CLIENT_CONNECT, $ctx);
+                $out['tls_connect'] = $conn ? 'ok' : ('erro ' . $errno . ' ' . $errstr);
+                if ($conn) { fclose($conn); }
+            }
+        }
+    }
+    return $out;
+}
+
+// Mostrar status MongoDB Atlas (health check leve)
+$mongoUri = getenv('MONGODB_URI') ?: '';
+$maskedUri = $mongoUri ? preg_replace('#^(mongodb\+srv://)([^@]+)@#', '$1***:***@', $mongoUri) : '';
+$health = mongodb_health_check($mongoUri);
+echo '<div class="box"><h2>MongoDB Atlas</h2>';
+echo '<p>URI: ' . ($maskedUri ? htmlspecialchars($maskedUri) : '<em>não definida</em>') . '</p>';
+echo '<ul>';
+echo '<li>Extensão mongodb: ' . (extension_loaded('mongodb') ? 'presente' : 'ausente') . '</li>';
+echo '<li>Cliente MongoDB\\Client: ' . (class_exists('\\MongoDB\\Client') ? 'presente' : 'ausente') . '</li>';
+echo '<li>Host: ' . htmlspecialchars($health['host'] ?? '') . '</li>';
+echo '<li>SRV registros: ' . intval($health['srv_count'] ?? 0) . '</li>';
+echo '<li>TXT: ' . htmlspecialchars(implode(', ', $health['txt'] ?? [])) . '</li>';
+echo '<li>TLS conexão: ' . htmlspecialchars($health['tls_connect'] ?? 'não testado') . '</li>';
+echo '</ul>';
+echo '<p style="font-size:12px;opacity:0.7">Teste leve (DNS/TLS). Integração real pode usar o Data API.</p>';
+echo '</div>';
