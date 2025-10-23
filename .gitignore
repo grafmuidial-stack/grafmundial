@@ -19,5 +19,8 @@ vendor/
 # Arquivos de configuração local
 config.local.php
 
-# Painel administrativo (PHP - não funciona no GitHub Pages)
-admin/
+# Backups gerados pelo Admin
+frontend/uploads/backups/
+
+# Arquivos de backup compactados
+*.zip

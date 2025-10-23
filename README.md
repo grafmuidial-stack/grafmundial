@@ -2,18 +2,19 @@
 
 Este projeto contém o site da Mundial Gráfica e seu painel administrativo.
 
-## 🌐 Site Principal (GitHub Pages)
+## 🌐 Site Principal (GitHub Pages via Actions)
 
-O site principal é estático (HTML/CSS/JS) e está hospedado no GitHub Pages:
-- **URL:** https://[seu-usuario].github.io/graficamundial/
-- **Arquivos:** Todos os arquivos HTML, CSS, JS e imagens na raiz do projeto
+O site principal é estático (HTML/CSS/JS) e é publicado via GitHub Actions a partir da pasta `frontend/`.
+- **URL:** https://[seu-usuario].github.io/graficamundial/ (ou seu domínio do CNAME)
+- **Fonte de publicação:** workflow `.github/workflows/deploy.yml` (deploy de `frontend/`)
+- **Arquivos incluídos:** Todos os arquivos HTML, CSS, JS e imagens dentro de `frontend/` (inclui `CNAME`)
 
 ### Estrutura do Site:
-- `index.html` - Página principal
-- `styles.css` - Estilos principais
-- `*.html` - Páginas do catálogo (produtos, serviços)
-- `*.png`, `*.jpg`, `*.svg` - Imagens e ícones
-- `uploads/` - Pasta para imagens enviadas
+- `frontend/index.html` - Página principal
+- `frontend/styles.css` - Estilos principais
+- `frontend/*.html` - Páginas do catálogo (produtos, serviços)
+- `frontend/*.png`, `*.jpg`, `*.svg` - Imagens e ícones
+- `frontend/uploads/` - Pasta para imagens enviadas
 
 ## 🔧 Painel Administrativo (Local - XAMPP)
 
@@ -39,12 +40,12 @@ cd graficamundial
 
 3. **Instale dependências do admin:**
 ```bash
-cd admin
+cd backend/admin
 composer install
 ```
 
 4. **Configure MongoDB Atlas:**
-   - Edite `admin/config/database.php`
+   - Edite `backend/admin/config/database.php`
    - Substitua a string de conexão pela sua
 
 5. **Acesse o admin:**
@@ -56,31 +57,31 @@ composer install
 
 ```
 graficamundial/
-├── index.html              # Site principal
-├── styles.css              # Estilos do site
-├── *.html                  # Páginas do catálogo
-├── *.png, *.jpg, *.svg     # Imagens
-├── uploads/                # Uploads de imagens
-├── admin/                  # Painel administrativo (PHP)
-│   ├── config/            # Configurações
-│   ├── includes/          # Autenticação e funções
-│   ├── pages/             # Páginas do admin
-│   ├── assets/            # CSS/JS do admin
-│   └── composer.json      # Dependências PHP
-└── .gitignore             # Exclui pasta admin do GitHub
+├── frontend/              # Site estático publicado no Pages
+│   ├── index.html
+│   ├── styles.css
+│   ├── *.html
+│   ├── assets (imgs/svg)
+│   └── CNAME              # Domínio customizado (opcional)
+├── backend/               # Painel administrativo (PHP), local
+│   ├── admin/
+│   └── router.php
+├── .github/workflows/deploy.yml  # Deploy automático do frontend
+├── .gitignore
+└── README.md
 ```
 
 ## 🚀 Deploy
 
-### Site (GitHub Pages):
-1. Faça commit dos arquivos estáticos
-2. Push para o repositório
-3. Configure GitHub Pages nas configurações do repo
+### Site (GitHub Pages via Action):
+1. Faça commit das mudanças na pasta `frontend/`
+2. Push para a branch `main`
+3. A Action `deploy.yml` fará o publish para `gh-pages`
 4. O site estará disponível em poucos minutos
 
 ### Admin (Local):
 - O admin permanece funcionando localmente
-- Não é enviado para o GitHub (excluído pelo .gitignore)
+- Não é utilizado no Pages
 - Gerencia conteúdo que pode ser sincronizado com o site
 
 ## 🔐 Segurança

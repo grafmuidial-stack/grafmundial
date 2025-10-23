@@ -1,0 +1,12 @@
+# Render Blueprint para Web Service Docker único (frontend + /admin)
+previews:
+  generation: automatic
+services:
+  - type: web
+    name: grafmundial-site
+    runtime: docker
+    branch: main
+    rootDir: .
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
