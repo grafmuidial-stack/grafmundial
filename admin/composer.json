@@ -1,0 +1,19 @@
+{
+    "name": "graficamundial/admin-panel",
+    "description": "Painel Administrativo da Mundial Gráfica",
+    "type": "project",
+    "require": {
+        "php": ">=8.0",
+        "mongodb/mongodb": "^2.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "GraficaMundial\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
