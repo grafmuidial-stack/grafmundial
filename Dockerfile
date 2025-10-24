@@ -13,6 +13,9 @@ RUN mkdir -p /var/www/html/uploads
 # Copia backend
 COPY ./backend /var/www/backend
 
+# Copia admin moderno para o docroot
+COPY ./admin /var/www/html/admin
+
 # Configurações de Apache para permitir rewrite
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
     && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf \
@@ -23,19 +26,25 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-av
       echo '</Directory>'; \
     } >> /etc/apache2/apache2.conf
 
-# Roteamento via .htaccess: envia /admin para backend e fallback para index.html
+# Reescreve .htaccess: serve /admin direto e fallback para index.html
 RUN set -e; \
   cat > /var/www/html/.htaccess <<'EOF'
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteRule ^admin($|/.*)$ /router.php [L]
-  RewriteCond %{REQUEST_FILENAME} -f
+  # Admin moderno: somente a raiz /admin vai para o index.php do admin
+  RewriteRule ^admin/?$ /admin/index.php [L]
+
+  # Se for arquivo ou diretório existente (inclui /admin/assets, /admin/pages), serve direto
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
+
+  # Fallback para o frontend SPA
   RewriteRule ^ /index.html [L]
 </IfModule>
 EOF
 
-# Copia router.php para docroot
+# Copia router.php para docroot (não é mais usado para /admin)
 COPY ./backend/router.php /var/www/html/router.php
 RUN chown -R www-data:www-data /var/www/html \
     && find /var/www/html -type d -exec chmod 775 {} \; \
