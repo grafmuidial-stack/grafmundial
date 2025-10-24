@@ -53,39 +53,21 @@
             </div>
             
             <div class="product-list">
-                <div class="product-item">
+                <div class="product-item" data-category="impressos">
                     <a href="cartao-visita-detalhes.html" class="product-link">
-                        <img src="Icone cartao simples.png" alt="Cartões de Visita" class="product-image">
-                        <div class="product-info">
-                            <h3 class="product-title">Cartões de Visita</h3>
-                            <p class="product-description">🌟 O primeiro impacto conta!</p>
-                        </div>
--                        <div class="arrow-icon">›</div>
-+                        <div class="product-action"><span class="arrow-icon">❯</span></div>
+                        <!-- Cartões de Visita -->
                     </a>
                 </div>
                 
-                <div class="product-item">
+                <div class="product-item" data-category="impressos">
                     <a href="flyers-detalhes.html" class="product-link">
-                        <img src="panfleto.png" alt="Flyers e Panfletos" class="product-image">
-                        <div class="product-info">
-                            <h3 class="product-title">Panfletos</h3>
-                            <p class="product-description">📢 Alcance mais clientes com comunicação direta!</p>
-                        </div>
--                        <div class="arrow-icon">›</div>
-+                        <div class="product-action"><span class="arrow-icon">❯</span></div>
+                        <!-- Panfletos -->
                     </a>
                 </div>
                 
-           <div class="product-item">
+           <div class="product-item" data-category="impressos">
                     <a href="folders-detalhes.html" class="product-link">
-                        <img src="folder.jpg" alt="Folders" class="product-image">
-                        <div class="product-info">
-                            <h3 class="product-title">Folders</h3>
-                            <p class="product-description">📁 Informação organizada e impacto visual garantido!</p>
-                        </div>
--                        <div class="arrow-icon">›</div>
-+                        <div class="product-action"><span class="arrow-icon">❯</span></div>
+                        <!-- Folders -->
                     </a>
                 </div>
 
@@ -198,3 +180,26 @@
     </div>
 </body>
 </html>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const categoryTabs = document.querySelectorAll('.category-tab');
+  const productItems = document.querySelectorAll('.product-item');
+
+  categoryTabs.forEach(tab => {
+    tab.addEventListener('click', function(e) {
+      e.preventDefault();
+      categoryTabs.forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+
+      const selectedCategory = this.getAttribute('data-category');
+      productItems.forEach(item => {
+        if (selectedCategory === 'todos' || item.getAttribute('data-category') === selectedCategory) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    });
+  });
+});
+</script>
