@@ -228,6 +228,74 @@ function replace_first_img_src_in_main($html, $newSrc) {
     return replace_main_content($html, $updatedMain);
 }
 
+// ===== Produtos e Categorias =====
+$catalogPath = $DOCROOT . '/catalogo.html';
+
+function categorySlugSimple($name) {
+    $map = [
+        'Impressos Rápidos' => 'impressos',
+        'Embalagens' => 'embalagens',
+        'Promocionais' => 'promocionais',
+        'Corporativos' => 'corporativos'
+    ];
+    $name = trim($name);
+    return $map[$name] ?? 'impressos';
+}
+
+function extractProductsFromCatalog($catalogPath) {
+    if (!is_file($catalogPath)) return [];
+    $html = file_get_contents($catalogPath);
+    if ($html === false) return [];
+    $products = [];
+    // Captura product-item com data-category e o título do produto
+    $pattern = '/<div[^>]*class="product-item"[^>]*data-category="([^"]+)"[^>]*>[\s\S]*?<h3[^>]*class="product-title"[^>]*>([^<]+)<\/h3>[\s\S]*?<\/div>/i';
+    if (preg_match_all($pattern, $html, $m)) {
+        for ($i = 0; $i < count($m[0]); $i++) {
+            $products[] = [
+                'category' => $m[1][$i],
+                'title' => trim($m[2][$i])
+            ];
+        }
+    }
+    return $products;
+}
+
+function injectProductIntoCatalog($catalogPath, $title, $description, $slug) {
+    if (!is_file($catalogPath)) return 'Catálogo não encontrado.';
+    $html = file_get_contents($catalogPath);
+    if ($html === false) return 'Falha ao ler catálogo.';
+
+    $marker = '<!-- admin:inject-new-products-here -->';
+    $card = '<div class="product-item" data-category="' . htmlspecialchars($slug, ENT_QUOTES) . '">'
+          . '  <a href="#" class="product-link">'
+          . '    <img src="logo.png" alt="' . htmlspecialchars($title, ENT_QUOTES) . '" class="product-image">'
+          . '    <div class="product-info">'
+          . '      <h3 class="product-title">' . htmlspecialchars($title, ENT_QUOTES) . '</h3>'
+          . '      <p class="product-description">' . htmlspecialchars($description, ENT_QUOTES) . '</p>'
+          . '    </div>'
+          . '  </a>'
+          . '</div>';
+
+    $newHtml = null;
+
+    // 1) Se o marcador existe, usar para injetar
+    if (strpos($html, $marker) !== false) {
+        $newHtml = str_replace($marker, $marker . PHP_EOL . $card, $html);
+    } else {
+        // 2) Tentar injetar antes do fechamento da lista de produtos
+        $newHtml = preg_replace(
+            '/(<div[^>]*class="[^"]*product-list[^"]*"[^>]*>)([\s\S]*?)(<\/div>)/i',
+            '$1$2' . PHP_EOL . $card . '$3',
+            $html,
+            1
+        );
+    }
+
+    if (!$newHtml) return 'Falha ao preparar nova versão do catálogo.';
+    if (file_put_contents($catalogPath, $newHtml) === false) return 'Falha ao salvar catálogo.';
+    return 'OK';
+}
+
 $page_msg = '';
 // Criar página
 if (isset($_POST['action']) && $_POST['action'] === 'create_page') {
@@ -419,6 +487,25 @@ if (isset($_POST['action']) && $_POST['action'] === 'upload_image') {
     }
 }
 
+// ===== Adicionar Produto =====
+if (isset($_POST['action']) && $_POST['action'] === 'add_product') {
+    $productName = trim($_POST['product_name'] ?? '');
+    $productDescription = trim($_POST['product_description'] ?? '');
+    $productCategoryLabel = trim($_POST['product_category'] ?? 'Impressos Rápidos');
+    $slug = categorySlugSimple($productCategoryLabel);
+
+    if ($productName === '') {
+        $page_msg = 'Informe o nome do produto.';
+    } else {
+        $result = injectProductIntoCatalog($catalogPath, $productName, $productDescription, $slug);
+        if ($result === 'OK') {
+            $page_msg = 'Produto adicionado com sucesso: ' . htmlspecialchars($productName) . ' (' . htmlspecialchars($productCategoryLabel) . ')';
+        } else {
+            $page_msg = $result;
+        }
+    }
+}
+
 // ===== Renderização do painel admin =====
 echo '<!doctype html><html><head><meta charset="utf-8"><title>Admin - Grafica Mundial</title><style>
   body{font-family:sans-serif;max-width:1000px;margin:24px auto;padding:16px;background:#f7f7f7;color:#222}
@@ -533,6 +620,35 @@ if ($editPage) {
     echo '<p style="font-size:12px;color:#555;margin-top:8px">Imagens são salvas em <code>/uploads</code>. Após enviar, você pode colar a URL no conteúdo ou marcar para substituir automaticamente.</p>';
     echo '</form></div>';
 }
+
+// ===== Gerenciar Produtos =====
+$existing = extractProductsFromCatalog($catalogPath);
+echo '<div class="box"><h2>Gerenciar Produtos</h2>';
+echo '<form method="post" style="margin-bottom:16px;">';
+echo '<input type="hidden" name="action" value="add_product">';
+echo '<div style="margin-bottom:8px;"><label>Nome do produto:</label><br><input name="product_name" placeholder="Ex: Cartões de visita" style="width:100%;max-width:300px;"></div>';
+echo '<div style="margin-bottom:8px;"><label>Descrição:</label><br><textarea name="product_description" placeholder="Descrição do produto" style="width:100%;max-width:300px;height:60px;"></textarea></div>';
+echo '<div style="margin-bottom:8px;"><label>Categoria:</label><br><select name="product_category" style="width:100%;max-width:300px;">';
+echo '<option value="Impressos Rápidos">Impressos Rápidos</option>';
+echo '<option value="Embalagens">Embalagens</option>';
+echo '<option value="Promocionais">Promocionais</option>';
+echo '<option value="Corporativos">Corporativos</option>';
+echo '</select></div>';
+echo '<button type="submit">Adicionar Produto</button>';
+echo '</form>';
+
+if (!empty($existing)) {
+    echo '<h3>Produtos existentes:</h3>';
+    echo '<div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">';
+    foreach ($existing as $prod) {
+        echo '<div>' . htmlspecialchars($prod['title']) . ' <small>(' . htmlspecialchars($prod['category']) . ')</small></div>';
+        echo '<div><a href="/catalogo.html?categoria=' . htmlspecialchars($prod['category']) . '" target="_blank">Ver no Site</a></div>';
+    }
+    echo '</div>';
+} else {
+    echo '<p><em>Nenhum produto encontrado no catálogo.</em></p>';
+}
+echo '</div>';
 
 // ===== Renderização do painel admin =====
 echo '<div class="box"><h2>Páginas</h2><div class="list">';

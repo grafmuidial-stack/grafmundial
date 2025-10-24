@@ -146,12 +146,7 @@ if ($_POST) {
                 </button>
             </form>
             
-            <div class="text-center mt-4">
-                <small class="text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Usuário padrão: <strong>admin</strong> | Senha: <strong>admin123</strong>
-                </small>
-            </div>
+
         </div>
     </div>
 

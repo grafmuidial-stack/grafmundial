@@ -54,8 +54,7 @@ composer install
 
 5. **Acesse o admin:**
    - URL: `http://localhost/graficamundial/admin/`
-   - Usuário: `admin`
-   - Senha: `admin123`
+   - Use as credenciais configuradas no sistema
 
 ## 📁 Estrutura do Projeto
 

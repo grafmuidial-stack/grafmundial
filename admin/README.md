@@ -61,9 +61,7 @@ $this->uri = "mongodb+srv://SEU_USUARIO:SUA_SENHA@cluster0.mongodb.net/graficamu
 ### 5. Inicializar Sistema
 
 1. Acesse: `http://localhost/graficamundial/admin/`
-2. Faça login com:
-   - **Usuário:** admin
-   - **Senha:** admin123
+2. Faça login com as credenciais configuradas no sistema
 
 ## 📁 Estrutura do Projeto
 
