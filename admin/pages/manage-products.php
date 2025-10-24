@@ -19,8 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $productName = sanitize($_POST['product_name'] ?? '');
         $productDescription = sanitize($_POST['product_description'] ?? '');
         $productCategory = sanitize($_POST['product_category'] ?? '');
-        
-        if (!empty($productName)) {
+        $slug = categorySlug($productCategory);
+
+        if (!empty($productName) && !empty($productCategory)) {
             // Aqui você pode adicionar lógica para salvar no banco de dados
             // Por enquanto, vamos apenas mostrar uma mensagem de sucesso
             $message = 'Produto "' . $productName . '" adicionado com sucesso!';
@@ -193,7 +194,7 @@ $categories = [
                                                         <td><?= htmlspecialchars($product) ?></td>
                                                         <td>
                                                             <div class="btn-group" role="group">
-                                                                <a href="http://localhost:3000/index.html" 
+                                                                <a href="http://localhost:8000/frontend/catalogo.html?categoria=impressos" 
                                                                    target="_blank" 
                                                                    class="btn btn-sm btn-outline-primary"
                                                                    title="Ver no Site">
@@ -249,3 +250,15 @@ $categories = [
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
+<?php
+function categorySlug($name) {
+    $map = [
+        'Impressos Rápidos' => 'impressos',
+        'Embalagens' => 'embalagens',
+        'Promocionais' => 'promocionais',
+        'Corporativos' => 'corporativos',
+        'Todos' => 'todos',
+    ];
+    return $map[$name] ?? 'todos';
+}

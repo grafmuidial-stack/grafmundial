@@ -44,42 +44,15 @@
         </nav>
         
         <main class="content">
-            <div class="category-tabs">
-                <a href="#" class="category-tab active" data-category="todos">Todos</a>
-                <a href="#" class="category-tab" data-category="impressos">Impressos Rápidos</a>
-                <a href="#" class="category-tab" data-category="embalagens">Embalagens</a>
-                <a href="#" class="category-tab" data-category="promocionais">Promocionais</a>
-                <a href="#" class="category-tab" data-category="corporativos">Corporativos</a>
+            <!-- Dentro de .category-tabs -->
+                <a href="?categoria=todos" class="category-tab" data-category="todos">Todos</a>
+                <a href="?categoria=impressos" class="category-tab" data-category="impressos">Impressos Rápidos</a>
+                <a href="?categoria=embalagens" class="category-tab" data-category="embalagens">Embalagens</a>
+                <a href="?categoria=promocionais" class="category-tab" data-category="promocionais">Promocionais</a>
+                <a href="?categoria=corporativos" class="category-tab" data-category="corporativos">Corporativos</a>
             </div>
             
-            <div class="product-list">
-                <div class="product-item" data-category="impressos">
-                    <a href="cartao-visita-detalhes.html" class="product-link">
-                        <img src="Icone cartao simples.png" alt="Cartões de Visita" class="product-image">
-                        <div class="product-info">
-                            <h3 class="product-title">Cartões de Visita</h3>
-                            <p class="product-description">🖨️ O primeiro impacto conta!</p>
-                        </div>
-                        <div class="product-action">
-                            <span class="arrow-icon">❯</span>
-                        </div>
-                    </a>
-                </div>
-                
-                <div class="product-item" data-category="impressos">
-                    <a href="flyers-detalhes.html" class="product-link">
-                        <img src="panfleto.png" alt="Flyers e Panfletos" class="product-image">
-                        <div class="product-info">
-                            <h3 class="product-title">Flyers e Panfletos</h3>
-                            <p class="product-description">📄 Alcance mais clientes com comunicação direta!</p>
-                        </div>
-                        <div class="product-action">
-                            <span class="arrow-icon">❯</span>
-                        </div>
-                    </a>
-                </div>
-                
-             <div class="product-item" data-category="impressos">
+            <!-- Dentro de .product-list, após os cards já existentes -->
                     <a href="folders-detalhes.html" class="product-link">
                         <img src="folders.svg" alt="Folders" class="product-image">
                         <div class="product-info">
@@ -208,29 +181,42 @@
             const categoryTabs = document.querySelectorAll('.category-tab');
             const productItems = document.querySelectorAll('.product-item');
             
+            // Inicial: ler ?categoria da URL
+            const params = new URLSearchParams(window.location.search);
+            const initialCategory = params.get('categoria') || 'todos';
+            
+            // Ativar aba selecionada
+            categoryTabs.forEach(t => t.classList.remove('active'));
+            const initialTab = Array.from(categoryTabs).find(t => t.getAttribute('data-category') === initialCategory);
+            (initialTab || categoryTabs[0]).classList.add('active');
+            
+            // Aplicar filtro inicial
+            productItems.forEach(item => {
+              if (initialCategory === 'todos' || item.getAttribute('data-category') === initialCategory) {
+                item.style.display = 'flex';
+              } else {
+                item.style.display = 'none';
+              }
+            });
+            
+            // Click: manter comportamento
             categoryTabs.forEach(tab => {
-                tab.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // Remove active class from all tabs
-                    categoryTabs.forEach(t => t.classList.remove('active'));
-                    
-                    // Add active class to clicked tab
-                    this.classList.add('active');
-                    
-                    const selectedCategory = this.getAttribute('data-category');
-                    
-                    // Show/hide products based on category
-                    productItems.forEach(item => {
-                        if (selectedCategory === 'todos' || item.getAttribute('data-category') === selectedCategory) {
-                            item.style.display = 'flex';
-                        } else {
-                            item.style.display = 'none';
-                        }
-                    });
+              tab.addEventListener('click', function(e) {
+                e.preventDefault();
+                categoryTabs.forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                const selectedCategory = this.getAttribute('data-category');
+                productItems.forEach(item => {
+                  item.style.display = (selectedCategory === 'todos' || item.getAttribute('data-category') === selectedCategory) ? 'flex' : 'none';
                 });
+                // Atualiza URL sem recarregar (opcional)
+                const url = new URL(window.location);
+                url.searchParams.set('categoria', selectedCategory);
+                window.history.replaceState({}, '', url);
+              });
             });
         });
     </script>
 </body>
 </html>
+<!-- admin:inject-new-products-here -->
