@@ -155,6 +155,11 @@ if ($search) {
 }
 
 $pagination = paginate($pages, $page_num, 10, $filter);
+
+// Lista de arquivos HTML estáticos do frontend
+$static_files = array_map(function($p) {
+    return 'frontend/' . basename($p);
+}, glob(dirname(dirname(__DIR__)) . '/frontend/*.html'));
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -230,6 +235,36 @@ $pagination = paginate($pages, $page_num, 10, $filter);
             <?php displayFlashMessage(); ?>
             
             <?php if ($action === 'list'): ?>
+                <!-- Atalho: Editar Arquivos HTML Estáticos -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-code me-2"></i>Editar Arquivo HTML Estático</h5>
+                    </div>
+                    <div class="card-body">
+                        <?php if (empty($static_files)): ?>
+                            <p class="text-muted">Nenhum arquivo HTML encontrado em <code>frontend/</code>.</p>
+                        <?php else: ?>
+                            <form method="GET" class="row g-3 align-items-end">
+                                <input type="hidden" name="action" value="edit">
+                                <div class="col-md-8">
+                                    <label for="file" class="form-label">Selecione o arquivo</label>
+                                    <select id="file" name="file" class="form-select" required>
+                                        <?php foreach ($static_files as $sf): ?>
+                                            <option value="<?= htmlspecialchars($sf) ?>"><?= htmlspecialchars($sf) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="form-text">Arquivos localizados no diretório <code>frontend/</code>.</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="submit" class="btn btn-outline-primary w-100">
+                                        <i class="fas fa-edit me-2"></i>Editar Arquivo
+                                    </button>
+                                </div>
+                            </form>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
                 <!-- Lista de Páginas -->
                 <div class="card">
                     <div class="card-header">

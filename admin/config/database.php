@@ -8,33 +8,48 @@ class Database {
     private $client;
     private $database;
     private $uri;
-    
-    public function __construct() {
-        // String de conexão do MongoDB Atlas
-        // Substitua pelos seus dados reais do MongoDB Atlas
+    private $dbName;
 
-        $this->uri = "mongodb+srv://ara100limite:ERxkG9nXZjbwvpMk@cluster0.yzf2r.mongodb.net/best?retryWrites=true&w=majority";
-        
+    public function __construct() {
         try {
             // Carrega o autoloader do Composer para usar a biblioteca MongoDB
             require_once __DIR__ . '/../vendor/autoload.php';
-            
-            // Conecta ao MongoDB Atlas usando a extensão nativa
-            $this->client = new MongoDB\Driver\Manager($this->uri);
-            
-            // Testa a conexão executando um comando ping
-            $command = new MongoDB\Driver\Command(['ping' => 1]);
-            $this->client->executeCommand('admin', $command);
-            
-            // Inicializa o banco de dados usando a biblioteca de alto nível
-            $mongoClient = new MongoDB\Client($this->uri);
-            $this->database = $mongoClient->best;
-            
+
+            // Exige a URI via variável de ambiente (não usa credenciais hardcoded)
+            $envUri = getenv('MONGODB_URI') ?: getenv('MONGO_URI');
+            if ($envUri && $envUri !== '') {
+                $this->uri = $envUri;
+            } else {
+                throw new Exception('Defina MONGODB_URI com sua string SRV do Atlas.');
+            }
+
+            if (!extension_loaded('mongodb')) {
+                throw new Exception('Extensão mongodb ausente. Ative-a no php.ini.');
+            }
+
+            // Conecta e seleciona banco (extraído da URI, ou fallback)
+            $this->client = new MongoDB\Client($this->uri);
+            $this->dbName = $this->extractDbNameFromUri($this->uri) ?: 'graficamundial';
+            $this->database = $this->client->selectDatabase($this->dbName);
+
+            // Valida conexão com ping
+            $this->database->command(['ping' => 1]);
         } catch (Exception $e) {
-            die("Erro na conexão com MongoDB Atlas: " . $e->getMessage());
+            throw $e;
         }
     }
     
+private function extractDbNameFromUri($uri) {
+        $parts = parse_url($uri);
+        if (!empty($parts['path'])) {
+            $path = ltrim($parts['path'], '/');
+            if ($path !== '') {
+                return $path;
+            }
+        }
+        return null;
+    }
+
     /**
      * Retorna uma coleção específica
      */
@@ -61,7 +76,7 @@ class Database {
      */
     public function testConnection() {
         try {
-            $result = $this->client->listDatabases();
+            $this->database->command(['ping' => 1]);
             return true;
         } catch (Exception $e) {
             return false;
@@ -78,17 +93,32 @@ class Database {
             'menus',
             'products',
             'images',
-            'settings'
+            'settings',
+            'activity_logs'
         ];
         
-        foreach ($collections as $collection) {
-            $this->database->createCollection($collection);
+        // Lista existentes e cria somente as ausentes
+        $existing = [];
+        foreach ($this->database->listCollections() as $c) {
+            $existing[] = $c->getName();
         }
-        
-        // Cria usuário admin padrão se não existir
+
+        foreach ($collections as $collection) {
+            if (!in_array($collection, $existing, true)) {
+                try {
+                    $this->database->createCollection($collection);
+                } catch (Exception $e) {
+                    // Ignora condição de corrida
+                }
+            }
+        }
+
+        // Garantir índices nas coleções
+        $this->ensureIndexes();
+
+        // Cria admin padrão se não existir
         $users = $this->getCollection('admin_users');
         $adminExists = $users->findOne(['username' => 'admin']);
-        
         if (!$adminExists) {
             $users->insertOne([
                 'username' => 'admin',
@@ -99,6 +129,37 @@ class Database {
                 'active' => true
             ]);
         }
+    }
+    
+    private function ensureIndexes() {
+        $users = $this->getCollection('admin_users');
+        $users->createIndex(['username' => 1], ['unique' => true]);
+        $users->createIndex(['email' => 1], ['unique' => true]);
+        $users->createIndex(['active' => 1]);
+    
+        $pages = $this->getCollection('pages');
+        $pages->createIndex(['slug' => 1], ['unique' => true]);
+        $pages->createIndex(['status' => 1]);
+        $pages->createIndex(['created_at' => -1]);
+    
+        $menus = $this->getCollection('menus');
+        $menus->createIndex(['name' => 1]);
+        $menus->createIndex(['position' => 1]);
+    
+        $products = $this->getCollection('products');
+        $products->createIndex(['slug' => 1], ['unique' => true]);
+        $products->createIndex(['category' => 1]);
+        $products->createIndex(['created_at' => -1]);
+    
+        $images = $this->getCollection('images');
+        $images->createIndex(['filename' => 1]);
+        $images->createIndex(['created_at' => -1]);
+        $images->createIndex(['action' => 1]);
+    
+        $logs = $this->getCollection('activity_logs');
+        $logs->createIndex(['created_at' => -1]);
+        $logs->createIndex(['user_id' => 1]);
+        $logs->createIndex(['action' => 1]);
     }
 }
 

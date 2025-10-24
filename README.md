@@ -1,57 +1,79 @@
-# Mundial Gráfica - Site e Painel Administrativo
+# Gráfica Mundial
 
-Este projeto contém o site da Mundial Gráfica e seu painel administrativo.
+Site da Gráfica Mundial com painel administrativo hospedado no Render.
 
-## 🌐 Site Principal (GitHub Pages via Actions)
+## Estrutura do Projeto
 
-O site principal é estático (HTML/CSS/JS) e é publicado via GitHub Actions a partir da pasta `frontend/`.
-- **URL:** https://[seu-usuario].github.io/graficamundial/ (ou seu domínio do CNAME)
-- **Fonte de publicação:** workflow `.github/workflows/deploy.yml` (deploy de `frontend/`)
-- **Arquivos incluídos:** Todos os arquivos HTML, CSS, JS e imagens dentro de `frontend/` (inclui `CNAME`)
+- `frontend/` - Site estático (HTML, CSS, JS)
+- `admin/` - Painel administrativo (PHP)
+- `backend/` - API e lógica do servidor
+- `uploads/` - Arquivos enviados
 
-### Estrutura do Site:
-- `frontend/index.html` - Página principal
-- `frontend/styles.css` - Estilos principais
-- `frontend/*.html` - Páginas do catálogo (produtos, serviços)
-- `frontend/*.png`, `*.jpg`, `*.svg` - Imagens e ícones
-- `frontend/uploads/` - Pasta para imagens enviadas
+## Configuração Local
 
-## 🔧 Painel Administrativo (Local - XAMPP)
+### Pré-requisitos
+- PHP 7.4+
+- Servidor web (Apache/Nginx) ou PHP built-in server
 
-O painel administrativo é desenvolvido em PHP e **NÃO funciona no GitHub Pages**. 
-Ele deve ser executado localmente no XAMPP.
+### Instalação
+1. Clone o repositório
+2. Configure o servidor web para servir a partir da raiz do projeto
+3. Acesse `admin/` para o painel administrativo
 
-### Pré-requisitos:
-- XAMPP com PHP 7.4+
-- MongoDB Atlas (conta gratuita)
-- Composer
+## Deploy no Render
 
-### Instalação Local:
+O site está hospedado em: https://grafmundial.onrender.com/
 
-1. **Clone o repositório:**
+### Configuração de Domínio Customizado
+
+Para apontar `graficamundial.com` para o Render:
+
+1. **No Dashboard do Render:**
+   - Acesse o serviço em https://dashboard.render.com
+   - Vá em Settings > Custom Domains
+   - Adicione `graficamundial.com` e `www.graficamundial.com`
+
+2. **No seu provedor de DNS:**
+   - **Domínio raiz (`graficamundial.com`):**
+     - Se suporta ALIAS/ANAME: `ALIAS graficamundial.com grafmundial.onrender.com`
+     - Se não suporta: `A graficamundial.com 216.24.57.1`
+   - **Subdomínio www:**
+     - `CNAME www grafmundial.onrender.com`
+   - **Remova registros AAAA** (IPv6) se existirem
+
+3. **Verificação:**
+   - Volte no Render e clique "Verify" para cada domínio
+   - Aguarde a emissão dos certificados SSL (alguns minutos)
+
+### Cloudflare (se usar)
+- Use `CNAME` para ambos `@` e `www` apontando para `grafmundial.onrender.com`
+- Mantenha "DNS only" até verificar, depois pode usar "Proxied"
+
+## URLs do Site
+- **Produção:** https://graficamundial.com (após configurar DNS)
+- **Render direto:** https://grafmundial.onrender.com/
+- **GitHub (código):** https://github.com/grafmuidial-stack/graficamundial
+
+## Preview Local
 ```bash
-git clone https://github.com/[seu-usuario]/graficamundial.git
-cd graficamundial
+# Servidor completo (raiz + admin) com roteador
+php -S localhost:8000 router.php
+
+# Apenas frontend
+php -S localhost:8001 -t frontend
+
+# Painel admin
+php -S localhost:8002 -t admin
 ```
 
-2. **Configure o XAMPP:**
-   - Coloque o projeto em `C:\xampp\htdocs\graficamundial`
-   - Inicie Apache no XAMPP
+## Desenvolvimento
+- **Com permissão de escrita:** `git push origin main` (auto-deploy no Render)
+- **Sem permissão:** Fork → Pull Request
 
-3. **Instale dependências do admin:**
-```bash
-cd backend/admin
-composer install
-```
-
-4. **Configure MongoDB Atlas:**
-   - Edite `backend/admin/config/database.php`
-   - Substitua a string de conexão pela sua
-
-5. **Acesse o admin:**
-   - URL: `http://localhost/graficamundial/admin/`
-   - Usuário: `admin`
-   - Senha: `admin123`
+## Notas Importantes
+- O Render faz auto-deploy a cada push na branch `main`
+- Configuração do build está em `render.yaml`
+- Não use GitHub Pages junto com domínio customizado no Render (conflito de propriedade)
 
 ## 📁 Estrutura do Projeto
 
@@ -70,19 +92,6 @@ graficamundial/
 ├── .gitignore
 └── README.md
 ```
-
-## 🚀 Deploy
-
-### Site (GitHub Pages via Action):
-1. Faça commit das mudanças na pasta `frontend/`
-2. Push para a branch `main`
-3. A Action `deploy.yml` fará o publish para `gh-pages`
-4. O site estará disponível em poucos minutos
-
-### Admin (Local):
-- O admin permanece funcionando localmente
-- Não é utilizado no Pages
-- Gerencia conteúdo que pode ser sincronizado com o site
 
 ## 🔐 Segurança
 

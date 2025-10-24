@@ -21,9 +21,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $menuType = sanitize($_POST['menu_type'] ?? '');
         
         if (!empty($menuName) && !empty($menuUrl)) {
-            // Aqui você pode adicionar lógica para salvar no arquivo HTML
-            $message = 'Item de menu "' . $menuName . '" adicionado com sucesso!';
-            $messageType = 'success';
+            // Persistir item na navegação principal do frontend
+            $indexPath = '../../frontend/index.html';
+            if (!file_exists($indexPath)) {
+                $message = 'Arquivo de navegação não encontrado em /frontend/index.html';
+                $messageType = 'danger';
+            } else {
+                $content = file_get_contents($indexPath);
+                if ($content === false) {
+                    $message = 'Não foi possível ler o arquivo de navegação.';
+                    $messageType = 'danger';
+                } else {
+                    // Encontrar o <nav class="main-nav"> e injetar o novo link antes de </nav>
+                    if (preg_match('/(<nav[^>]*class="[^"]*main-nav[^"]*"[^>]*>)(.*?)(<\/nav>)/is', $content, $parts)) {
+                        $newItem = "\n            <a href=\"" . $menuUrl . "\" class=\"nav-item\">\n                <span class=\"nav-icon\">❯</span>\n                <span>" . htmlspecialchars($menuName, ENT_QUOTES) . "</span>\n            </a>\n";
+                        $updated = $parts[1] . $parts[2] . $newItem . $parts[3];
+                        $updatedContent = str_replace($parts[0], $updated, $content);
+                        if (file_put_contents($indexPath, $updatedContent) !== false) {
+                            $message = 'Item de menu "' . $menuName . '" adicionado com sucesso!';
+                            $messageType = 'success';
+                        } else {
+                            $message = 'Falha ao salvar o novo item de menu.';
+                            $messageType = 'danger';
+                        }
+                    } else {
+                        $message = 'Bloco de navegação principal não encontrado no frontend.';
+                        $messageType = 'danger';
+                    }
+                }
+            }
         } else {
             $message = 'Nome e URL do menu são obrigatórios.';
             $messageType = 'danger';
@@ -32,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Extrair estrutura de menus do index.html
-$indexPath = '../../index.html';
+$indexPath = '../../frontend/index.html';
 $menuStructure = [
     'navigation' => [],
     'categories' => [],
@@ -43,9 +69,8 @@ if (file_exists($indexPath)) {
     $content = file_get_contents($indexPath);
     
     // Extrair navegação principal
-    preg_match_all('/<nav[^>]*>.*?<\/nav>/s', $content, $navMatches);
-    if (!empty($navMatches[0])) {
-        preg_match_all('/<a[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/i', $navMatches[0][0], $navLinks);
+    if (preg_match('/<nav[^>]*class="[^"]*main-nav[^"]*"[^>]*>.*?<\/nav>/is', $content, $navMatch)) {
+        preg_match_all('/<a[^>]*href=\"([^\"]*)\"[^>]*>.*?<span[^>]*>([^<]*)<\/span>.*?<\/a>/is', $navMatch[0], $navLinks);
         if (!empty($navLinks[1])) {
             for ($i = 0; $i < count($navLinks[1]); $i++) {
                 $menuStructure['navigation'][] = [
@@ -170,7 +195,7 @@ $menuTypes = [
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label for="menu_url" class="form-label">URL/Link</label>
-                                            <input type="text" class="form-control" id="menu_url" name="menu_url" placeholder="ex: catalogo.html ou #secao" required>
+                                            <input type="text" class="form-control" id="menu_url" name="menu_url" placeholder="ex: portfolio.html ou #secao" required>
                                         </div>
                                     </div>
                                     <div class="mb-3">
@@ -232,7 +257,7 @@ $menuTypes = [
                                                         <td><code><?= htmlspecialchars($item['url']) ?></code></td>
                                                         <td>
                                                             <div class="btn-group" role="group">
-                                                                <a href="http://localhost:3000/<?= htmlspecialchars($item['url']) ?>" 
+                                                                <a href="http://localhost:8000/frontend/<?= htmlspecialchars($item['url']) ?>" 
                                                                    target="_blank" 
                                                                    class="btn btn-sm btn-outline-primary"
                                                                    title="Ver Link">
@@ -283,7 +308,7 @@ $menuTypes = [
                                                             Filtro: <code><?= htmlspecialchars($category['filter']) ?></code>
                                                         </p>
                                                         <div class="btn-group w-100" role="group">
-                                                            <a href="http://localhost:3000/index.html" 
+                                                            <a href="http://localhost:8000/frontend/index.html" 
                                                target="_blank" 
                                                class="btn btn-sm btn-outline-primary">
                                                                 <i class="fas fa-eye"></i>
@@ -329,7 +354,7 @@ $menuTypes = [
                                                         </h6>
                                                         <div class="mt-auto">
                                                             <div class="btn-group w-100" role="group">
-                                                                <a href="http://localhost/graficamundial/index.html" 
+                                                                <a href="http://localhost:8000/frontend/index.html" 
                                                                    target="_blank" 
                                                                    class="btn btn-sm btn-outline-primary">
                                                                     <i class="fas fa-eye"></i>

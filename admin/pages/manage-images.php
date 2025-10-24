@@ -1,6 +1,9 @@
 <?php
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
+require_once '../config/database.php';
+$db = new Database();
+$imagesCollection = $db->getCollection('images');
 
 // Verificar se o usuário está logado
 if (!isLoggedIn()) {
@@ -13,54 +16,68 @@ $messageType = '';
 
 // Processar upload de imagem
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image'])) {
-    $uploadDir = '../../';
-    $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/svg+xml'];
-    
-    $file = $_FILES['image'];
-    $fileName = $file['name'];
-    $fileTmpName = $file['tmp_name'];
-    $fileType = $file['type'];
-    $fileError = $file['error'];
-    $fileSize = $file['size'];
-    
-    if ($fileError === 0) {
-        if (in_array($fileType, $allowedTypes)) {
-            if ($fileSize < 5000000) { // 5MB limit
-                $fileDestination = $uploadDir . $fileName;
-                
-                if (move_uploaded_file($fileTmpName, $fileDestination)) {
-                    $message = 'Imagem enviada com sucesso!';
-                    $messageType = 'success';
-                } else {
-                    $message = 'Erro ao enviar a imagem.';
-                    $messageType = 'danger';
-                }
+    $replaceTarget = isset($_POST['replace_target']) ? trim($_POST['replace_target']) : null;
+
+    $upload = uploadFile($_FILES['image'], ['jpg','jpeg','png','gif','svg'], MAX_FILE_SIZE);
+    if ($upload['success']) {
+        if ($replaceTarget && file_exists('../../' . $replaceTarget)) {
+            $targetPath = '../../' . $replaceTarget;
+
+            // backup da imagem antiga
+            $backupDir = '../../frontend/uploads/backups/';
+            if (!is_dir($backupDir)) {
+                mkdir($backupDir, 0777, true);
+            }
+            $backupPath = $backupDir . basename($replaceTarget) . '.' . time() . '.bak';
+            @copy($targetPath, $backupPath);
+
+            // sobrescreve preservando o nome original
+            if (@rename($upload['filepath'], $targetPath)) {
+                $message = 'Imagem substituída com sucesso (nome preservado).';
+                $messageType = 'success';
+
+                $imagesCollection->insertOne([
+                    'action' => 'replace',
+                    'target' => $replaceTarget,
+                    'backup' => str_replace('../../', '', $backupPath),
+                    'filename' => basename($replaceTarget),
+                    'size' => filesize($targetPath),
+                    'mime' => mime_content_type($targetPath),
+                    'created_at' => new MongoDB\BSON\UTCDateTime(),
+                    'user' => $_SESSION['admin_user'] ?? 'admin'
+                ]);
             } else {
-                $message = 'Arquivo muito grande. Máximo 5MB.';
+                $message = 'Falha ao substituir a imagem.';
                 $messageType = 'danger';
+                @unlink($upload['filepath']);
             }
         } else {
-            $message = 'Tipo de arquivo não permitido. Use JPG, PNG, GIF ou SVG.';
-            $messageType = 'danger';
+            $message = 'Imagem enviada com sucesso!';
+            $messageType = 'success';
+            $imagesCollection->insertOne([
+                'action' => 'upload',
+                'filename' => $upload['filename'],
+                'path' => str_replace('../../', '', $upload['filepath']),
+                'size' => $_FILES['image']['size'],
+                'mime' => $_FILES['image']['type'],
+                'created_at' => new MongoDB\BSON\UTCDateTime(),
+                'user' => $_SESSION['admin_user'] ?? 'admin'
+            ]);
         }
     } else {
-        $message = 'Erro no upload do arquivo.';
+        $message = $upload['message'];
         $messageType = 'danger';
     }
 }
 
-// Listar imagens existentes
+// Listar imagens (raiz e frontend/)
 $imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg'];
 $images = [];
 foreach ($imageExtensions as $ext) {
-    $files = glob('../../*.' . $ext);
-    $images = array_merge($images, $files);
+    $images = array_merge($images, glob('../../*.' . $ext));
+    $images = array_merge($images, glob('../../frontend/*.' . $ext));
 }
-
-// Remover o prefixo do caminho para exibição
-$images = array_map(function($path) {
-    return str_replace('../../', '', $path);
-}, $images);
+$images = array_map(function($path) { return str_replace('../../', '', $path); }, $images);
 ?>
 
 <!DOCTYPE html>
@@ -133,6 +150,16 @@ $images = array_map(function($path) {
                                         <label for="image" class="form-label">Selecionar Imagem</label>
                                         <input type="file" class="form-control" id="image" name="image" accept="image/*" required>
                                         <div class="form-text">Formatos aceitos: JPG, PNG, GIF, SVG. Tamanho máximo: 5MB</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="replace_target" class="form-label">Substituir arquivo existente (opcional)</label>
+                                        <select id="replace_target" name="replace_target" class="form-select">
+                                            <option value="">— não substituir —</option>
+                                            <?php foreach ($images as $img): ?>
+                                                <option value="<?= htmlspecialchars($img) ?>"><?= htmlspecialchars($img) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="form-text">Se escolher um arquivo, o novo upload irá sobrescrever mantendo o mesmo nome.</div>
                                     </div>
                                     <button type="submit" class="btn btn-primary">
                                         <i class="fas fa-upload me-2"></i>Enviar Imagem
