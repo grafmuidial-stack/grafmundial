@@ -22,12 +22,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $slug = categorySlug($productCategory);
 
         if (!empty($productName) && !empty($productCategory)) {
-            // Aqui você pode adicionar lógica para salvar no banco de dados
-            // Por enquanto, vamos apenas mostrar uma mensagem de sucesso
-            $message = 'Produto "' . $productName . '" adicionado com sucesso!';
-            $messageType = 'success';
+            if (file_exists($catalogPath)) {
+                $html = file_get_contents($catalogPath);
+                $marker = '<!-- admin:inject-new-products-here -->';
+                $newItemHtml =
+                    '<div class="product-item" data-category="' . $slug . '">' .
+                        '<a href="#" class="product-link">' .
+                            '<img src="logo.png" alt="' . htmlspecialchars($productName) . '" class="product-image">' .
+                            '<div class="product-info">' .
+                                '<h3 class="product-title">' . htmlspecialchars($productName) . '</h3>' .
+                                '<p class="product-description">' . htmlspecialchars($productDescription) . '</p>' .
+                            '</div>' .
+                            '<div class="product-action"><span class="arrow-icon">❯</span></div>' .
+                        '</a>' .
+                    '</div>' . PHP_EOL;
+
+                if (strpos($html, $marker) !== false) {
+                    $html = str_replace($marker, $newItemHtml . $marker, $html);
+                    file_put_contents($catalogPath, $html);
+                    $message = 'Produto "' . $productName . '" adicionado à categoria ' . $productCategory . '.';
+                    $messageType = 'success';
+                } else {
+                    $message = 'Marcador de injeção não encontrado em catalogo.html.';
+                    $messageType = 'warning';
+                }
+            } else {
+                $message = 'Arquivo catalogo.html não encontrado.';
+                $messageType = 'danger';
+            }
         } else {
-            $message = 'Nome do produto é obrigatório.';
+            $message = 'Nome e categoria do produto são obrigatórios.';
             $messageType = 'danger';
         }
     }
@@ -252,6 +276,8 @@ $categories = [
 </html>
 
 <?php
+// Ler produtos do catálogo
+$catalogPath = '../../frontend/catalogo.html';
 function categorySlug($name) {
     $map = [
         'Impressos Rápidos' => 'impressos',

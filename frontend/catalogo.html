@@ -45,14 +45,16 @@
         
         <main class="content">
             <!-- Dentro de .category-tabs -->
-                <a href="?categoria=todos" class="category-tab" data-category="todos">Todos</a>
-                <a href="?categoria=impressos" class="category-tab" data-category="impressos">Impressos Rápidos</a>
-                <a href="?categoria=embalagens" class="category-tab" data-category="embalagens">Embalagens</a>
-                <a href="?categoria=promocionais" class="category-tab" data-category="promocionais">Promocionais</a>
-                <a href="?categoria=corporativos" class="category-tab" data-category="corporativos">Corporativos</a>
-            </div>
-            
-            <!-- Dentro de .product-list, após os cards já existentes -->
+                <!-- Tabs com links por categoria -->
+                <div class="category-tabs">
+                    <a href="?categoria=todos" class="category-tab" data-category="todos">Todos</a>
+                    <a href="?categoria=impressos" class="category-tab" data-category="impressos">Impressos Rápidos</a>
+                    <a href="?categoria=embalagens" class="category-tab" data-category="embalagens">Embalagens</a>
+                    <a href="?categoria=promocionais" class="category-tab" data-category="promocionais">Promocionais</a>
+                    <a href="?categoria=corporativos" class="category-tab" data-category="corporativos">Corporativos</a>
+                </div>
+                
+                <!-- Dentro de .product-list, após os cards já existentes -->
                     <a href="folders-detalhes.html" class="product-link">
                         <img src="folders.svg" alt="Folders" class="product-image">
                         <div class="product-info">
@@ -181,25 +183,17 @@
             const categoryTabs = document.querySelectorAll('.category-tab');
             const productItems = document.querySelectorAll('.product-item');
             
-            // Inicial: ler ?categoria da URL
             const params = new URLSearchParams(window.location.search);
             const initialCategory = params.get('categoria') || 'todos';
             
-            // Ativar aba selecionada
             categoryTabs.forEach(t => t.classList.remove('active'));
             const initialTab = Array.from(categoryTabs).find(t => t.getAttribute('data-category') === initialCategory);
             (initialTab || categoryTabs[0]).classList.add('active');
             
-            // Aplicar filtro inicial
             productItems.forEach(item => {
-              if (initialCategory === 'todos' || item.getAttribute('data-category') === initialCategory) {
-                item.style.display = 'flex';
-              } else {
-                item.style.display = 'none';
-              }
+              item.style.display = (initialCategory === 'todos' || item.getAttribute('data-category') === initialCategory) ? 'flex' : 'none';
             });
             
-            // Click: manter comportamento
             categoryTabs.forEach(tab => {
               tab.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -209,7 +203,6 @@
                 productItems.forEach(item => {
                   item.style.display = (selectedCategory === 'todos' || item.getAttribute('data-category') === selectedCategory) ? 'flex' : 'none';
                 });
-                // Atualiza URL sem recarregar (opcional)
                 const url = new URL(window.location);
                 url.searchParams.set('categoria', selectedCategory);
                 window.history.replaceState({}, '', url);
