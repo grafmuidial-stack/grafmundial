@@ -210,10 +210,10 @@ $images = array_map(function($path) { return str_replace('../../', '', $path); }
                                                                class="btn btn-sm btn-outline-primary">
                                                                 <i class="fas fa-eye"></i>
                                                             </a>
-                                                            <a href="http://localhost/graficamundial/<?= htmlspecialchars($image) ?>" 
-                                                               target="_blank" 
-                                                               class="btn btn-sm btn-outline-success">
-                                                                <i class="fas fa-external-link-alt"></i>
+                                                            <a href="/<?= htmlspecialchars($image) ?>"
+                                                               target="_blank"
+                                                               class="btn btn-outline-primary btn-sm">
+                                                               <i class="fas fa-external-link-alt"></i>
                                                             </a>
                                                         </div>
                                                     </div>

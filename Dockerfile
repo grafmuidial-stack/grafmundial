@@ -16,6 +16,15 @@ COPY ./backend /var/www/backend
 # Copia admin moderno para o docroot
 COPY ./admin /var/www/html/admin
 
+# Instala dependências para PECL mongodb e habilita a extensão
+RUN apt-get update && apt-get install -y libssl-dev pkg-config git unzip \
+    && pecl install mongodb \
+    && docker-php-ext-enable mongodb \
+    && rm -rf /var/lib/apt/lists/*
+# Instala dependências do Composer dentro do admin
+WORKDIR /var/www/html/admin
+RUN php composer.phar install --no-dev --prefer-dist --optimize-autoloader
+WORKDIR /var/www/html
 # Configurações de Apache para permitir rewrite
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
     && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf \

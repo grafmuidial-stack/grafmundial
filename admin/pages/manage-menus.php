@@ -257,7 +257,7 @@ $menuTypes = [
                                                         <td><code><?= htmlspecialchars($item['url']) ?></code></td>
                                                         <td>
                                                             <div class="btn-group" role="group">
-                                                                <a href="http://localhost:8000/frontend/<?= htmlspecialchars($item['url']) ?>" 
+                                                                <a href="/<?= htmlspecialchars($item['url']) ?>" 
                                                                    target="_blank" 
                                                                    class="btn btn-sm btn-outline-primary"
                                                                    title="Ver Link">
@@ -310,7 +310,7 @@ $menuTypes = [
                                                         <div class="btn-group w-100" role="group">
                                                             <a href="http://localhost:8000/frontend/index.html" 
                                                target="_blank" 
-                                               class="btn btn-sm btn-outline-primary">
+                                               class="btn btn-sm btn-outline-secondary">
                                                                 <i class="fas fa-eye"></i>
                                                             </a>
                                                             <button class="btn btn-sm btn-outline-warning" 

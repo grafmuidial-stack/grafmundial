@@ -218,11 +218,10 @@ $categories = [
                                                         <td><?= htmlspecialchars($product) ?></td>
                                                         <td>
                                                             <div class="btn-group" role="group">
-                                                                <a href="http://localhost:8000/frontend/catalogo.html?categoria=impressos" 
-                                                                   target="_blank" 
-                                                                   class="btn btn-sm btn-outline-primary"
-                                                                   title="Ver no Site">
-                                                                    <i class="fas fa-eye"></i>
+                                                                <a href="/catalogo.html?categoria=impressos"
+                                                                   target="_blank"
+                                                                   class="btn btn-outline-primary btn-sm">
+                                                                   <i class="fas fa-external-link-alt"></i>
                                                                 </a>
                                                                 <button class="btn btn-sm btn-outline-warning" 
                                                                         title="Editar"

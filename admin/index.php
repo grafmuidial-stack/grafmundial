@@ -201,7 +201,7 @@ if (!$user) {
                                     </a>
                                 </div>
                                 <div class="col-md-3 mb-3">
-                                    <a href="http://localhost/graficamundial/index.html" target="_blank" class="btn btn-info w-100">
+                                    <a href="/index.html" target="_blank" class="btn btn-info w-100">
                                         <i class="fas fa-eye me-2"></i>Ver Site
                                     </a>
                                 </div>
