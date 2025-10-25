@@ -15,12 +15,32 @@ class Database {
             // Carrega o autoloader do Composer para usar a biblioteca MongoDB
             require_once __DIR__ . '/../vendor/autoload.php';
 
-            // Exige a URI via variável de ambiente (não usa credenciais hardcoded)
-            $envUri = getenv('MONGODB_URI') ?: getenv('MONGO_URI');
+            // Busca MONGODB_URI/MONGO_URI em múltiplas fontes e fallback para .env
+            $envUri =
+                getenv('MONGODB_URI') ?: getenv('MONGO_URI') ?:
+                ($_ENV['MONGODB_URI'] ?? $_ENV['MONGO_URI'] ?? $_SERVER['MONGODB_URI'] ?? $_SERVER['MONGO_URI'] ?? null);
+
+            if (!$envUri) {
+                $envFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env';
+                if (is_file($envFile)) {
+                    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                    foreach ($lines as $line) {
+                        if (strpos($line, 'MONGODB_URI=') === 0) {
+                            $envUri = trim(substr($line, strlen('MONGODB_URI=')));
+                            break;
+                        }
+                        if (strpos($line, 'MONGO_URI=') === 0) {
+                            $envUri = trim(substr($line, strlen('MONGO_URI=')));
+                            break;
+                        }
+                    }
+                }
+            }
+
             if ($envUri && $envUri !== '') {
                 $this->uri = $envUri;
             } else {
-                throw new Exception('Defina MONGODB_URI com sua string SRV do Atlas.');
+                throw new Exception('Defina MONGODB_URI/MONGO_URI com sua string SRV do Atlas.');
             }
 
             if (!extension_loaded('mongodb')) {
