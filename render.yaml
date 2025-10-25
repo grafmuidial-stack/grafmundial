@@ -10,3 +10,6 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /
+    envVars:
+      - key: MONGODB_URI
+        fromSecret: mongodb_uri
